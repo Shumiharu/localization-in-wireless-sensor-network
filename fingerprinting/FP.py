@@ -114,7 +114,7 @@ if __name__ == "__main__":
   for i in range(valid_access_point_count):
     access_point.append(default_access_point[i])
   print("AP layout: adjacent" if is_adjacent else "AP layout: diagonal" )
-  # print(access_point)
+  print(access_point)
   
   # TNの座標
   target = {"x": 2.0, "y": 2.0}

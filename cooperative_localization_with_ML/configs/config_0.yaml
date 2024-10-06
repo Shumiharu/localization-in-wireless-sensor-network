@@ -1,0 +1,41 @@
+field_range:
+  x_top: 30.0
+  x_bottom: 0.0
+  y_top: 30.0
+  y_bottom: 0.0
+channel:
+  tx_power: 15.0
+  path_loss_at_the_reference_distance: 41.33
+  path_loss_exponent: 1.96
+  shadowing:
+    mean: 0.0
+    standard_deviation: (10**(0.1*2.73))
+  los:
+    mean: 0.0
+    standard_deviation: 0.6
+    probability: 1.0
+  nlos:
+    mean: 1.62
+    standard_deviation: 0.809
+    probability: 
+  receiver_sensitivity_threshold: -48.0
+  distance_error: .inf
+anchors:
+  - x: 10.0
+    y: 10.0
+  - x: 20.0
+    y: 10.0
+  - x: 10.0
+    y: 20.0
+  - x: 20.0
+    y: 20.0
+targets: 
+  count: 20
+localization:
+  is_cooperative: true
+  max_loop: 7
+  max_distance_measurement: 1
+  newton_raphson:
+    max_loop: 10
+    threshold: 10**(-8)
+sim_cycles: 10000
