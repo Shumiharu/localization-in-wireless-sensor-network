@@ -3,6 +3,7 @@ field_range:
   x_bottom: 0.0
   y_top: 30.0
   y_bottom: 0.0
+  grid_interval: 0.1
 channel:
   tx_power: 15.0
   path_loss_at_the_reference_distance: 41.33
@@ -38,4 +39,5 @@ localization:
   newton_raphson:
     max_loop: 10
     threshold: 10**(-8)
-sim_cycles: 10000
+model_filename: model_0.txt
+sim_cycles: 100

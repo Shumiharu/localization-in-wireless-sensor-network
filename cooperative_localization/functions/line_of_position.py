@@ -22,15 +22,3 @@ def calculate(sensors: np.ndarray, distances: np.ndarray) -> np.ndarray:
 # sensors = np.array([[10, 10, 1], [10, 20, 1], [20, 10, 1], [20, 20, 1]])
 # distances = np.array([1.2, 0.2, 1.0, 0.3])
 # print(calculate(sensors, distances))
-
-  # # R 
-  # R_matrix = np.zeros((len(sensors) - 1 , 2))
-  # for i in range(len(sensors) - 1):
-  #   R_matrix[i, 0] = 2*(sensors[-1, 0] - sensors[i][0])
-  #   R_matrix[i, 1] = 2*(sensors[-1, 1] - sensors[i][1])
-    # I
-  # I_matrix = np.zeros((len(sensors) - 1 , 1))
-  # for i in range(len(sensors) - 1):
-  #   I_matrix[i] = -(sensors[i, 0])**2.0 - (sensors[i, 1])**2.0 + (sensors[i, 3])**2.0 - (-(sensors[-1, 0])**2.0 - (sensors[-1, 1])**2 + (sensors[-1, 3])**2.0)
-  
-  
