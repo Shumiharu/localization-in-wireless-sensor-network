@@ -40,4 +40,4 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 model_filename: model_0.txt
-sim_cycles: 1000000
+sim_cycles: 100

@@ -24,7 +24,6 @@ import numpy as np
 import random
 import yaml
 import joblib
-import pandas as pd
 from datetime import datetime
 from scipy.stats import norm
 
@@ -111,7 +110,7 @@ if __name__ == "__main__":
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
-  root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
+  root_mean_squared_error_list = np.array([])
 
   # Make Folder and Save Config
   now = datetime.now()
@@ -157,6 +156,8 @@ if __name__ == "__main__":
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         is_localizable = len(distances_estimated) >= 3
 
+        # 測位可能確率の更新
+        field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, target, is_localizable)
 
         if not is_localizable:
           continue
@@ -199,7 +200,7 @@ if __name__ == "__main__":
 
             if targets_localized_count == targets_count:
               break
-
+            # 測位されていないターゲットを取得
             targets_not_localized = targets[~np.isin(targets, targets_localized).all(axis=1)]
 
             if is_cooperative_localization:
@@ -209,8 +210,8 @@ if __name__ == "__main__":
         continue
       break
 
-    targets_not_localized = targets[~np.isin(targets, targets_localized).all(axis=1)]
-    
+    # targets_not_localized = targets[~np.isin(targets, targets_localized).all(axis=1)]
+
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
     targets_localized_count_total += targets_localized_count
@@ -226,11 +227,10 @@ if __name__ == "__main__":
     else:
       root_mean_squared_error_avg = (root_mean_squared_error_avg*sim_cycle + root_mean_squared_error)/(sim_cycle + 1)
     
-    # RMSEの分布を更新（協調測位の場合はRMSEの値が大きく振れるのであまり意味がないかも）
-    # field_rmse_distribution = rmse_distribution.update(field_rmse_distribution, grid_interval, targets_localized, squared_error_list)
+    # RMSEの分布を更新
+    field_rmse_distribution = rmse_distribution.update(field_rmse_distribution, grid_interval, targets_localized, squared_error_list)
 
-    # 測位可能確率の分布の更新とその平均の算出
-    field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
+    # 平均の測位可能確率の算出
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
     print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="")
@@ -239,39 +239,22 @@ if __name__ == "__main__":
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
   # RMSEの累積分布関数を出力
-  root_mean_squared_error_range = np.arange(0, 10, 0.01)
-  cumulative_distribution_function = norm.cdf(root_mean_squared_error_range, loc=np.mean(root_mean_squared_error_range), scale=np.std(root_mean_squared_error_range))
-  cumulative_distribution_function_data = pd.DataFrame({
-    "RMSE": root_mean_squared_error_range,
-    "CDF": cumulative_distribution_function
-  })
-  cdf_filename = "cumulative_distribution_function.csv"
+  cdf = norm.cdf(root_mean_squared_error_list)
+  cdf_filename = "cdf.csv"
   cdf_filepath = os.path.join(output_dirpath, cdf_filename)
-  cumulative_distribution_function_data.to_csv(cdf_filepath, index=False)
+  np.savetxt(cdf_filepath, cdf)
   print(f"{cdf_filename} was saved in {cdf_filepath}.")
-  
+
   # RMSEの分布を出力
-  # field_rmse_distribution_data = pd.DataFrame({
-  #   "x": field_rmse_distribution[:, 0],
-  #   "y": field_rmse_distribution[:, 1],
-  #   "RMSE": field_rmse_distribution[:, 2],
-  #   "data_count": field_rmse_distribution[:, 3],
-  # })
-  # field_rmse_distribution_filename = "field_rmse_distribution.csv"
-  # field_rmse_distribution_filepath = os.path.join(output_dirpath, field_rmse_distribution_filename)
-  # field_rmse_distribution_data.to_csv(field_rmse_distribution_filepath, index=False)
-  # print(f"{field_rmse_distribution_filename} was saved in {field_rmse_distribution_filepath}.")
+  field_rmse_distribution_filename = "field_rmse_distribution.csv"
+  field_rmse_distribution_filepath = os.path.join(output_dirpath, field_rmse_distribution_filename)
+  np.savetxt(field_rmse_distribution_filepath, field_rmse_distribution, fmt=("%.1f", "%.1f", "%.5f", "%d"))
+  print(f"{field_rmse_distribution_filename} was saved in {field_rmse_distribution_filepath}.")
 
   # 測位可能確率の分布を出力
-  field_localizable_probability_distribution_data = pd.DataFrame({
-    "x": field_localizable_probability_distribution[:, 0],
-    "y": field_localizable_probability_distribution[:, 1],
-    "localizable_probability": field_localizable_probability_distribution[:, 2],
-    "data_count": field_localizable_probability_distribution[:, 3],
-  })
   field_localizable_probability_distribution_filename = "field_localizable_probability_distribution.csv"
   field_localizable_probability_distribution_filepath = os.path.join(output_dirpath, field_localizable_probability_distribution_filename)
-  field_localizable_probability_distribution_data.to_csv(field_localizable_probability_distribution_filepath, index=False)
+  np.savetxt(field_localizable_probability_distribution_filepath, field_localizable_probability_distribution, fmt=("%.1f", "%.1f", "%.5f", "%d"))
   print(f"{field_localizable_probability_distribution_filename} was saved in {field_localizable_probability_distribution_filepath}.")
 
 print("\ncomplete.")
