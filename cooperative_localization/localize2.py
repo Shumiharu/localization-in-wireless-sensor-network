@@ -33,7 +33,7 @@ from functions import distance_toa
 from functions import normalization
 from functions import line_of_position
 from functions import newton_raphson
-from functions import squared_error
+from functions import distance_error_squared
 
 # 特徴量の算出
 from functions import distance_from_sensors_to_approximate_line
@@ -96,14 +96,16 @@ if __name__ == "__main__":
   newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
 
   # Feature 
-  feature_distance_to_approximate_line: float = 0.0 # sensorとsensorから線形回帰して得られる近似直線の距離の平均
-  feature_convex_hull_volume: float = 0.0 # 凸包の面積
-  feature_avg_residual: float = 0.0 # 残差の平均
-  feature_distance_from_centroid_of_sensors_to_vn_maximized = 0.0 # sensorの重心とvanish nodeまでの最大距離
-  feature_distance_from_center_of_field_to_target = 0.0 # フィールドの中心とtargetの距離
+  # feature_error = 0.0 # 測距誤差
+  # feature_distance_to_approximate_line: float = 0.0 # sensorとsensorから線形回帰して得られる近似直線の距離の平均
+  # feature_convex_hull_volume: float = 0.0 # 凸包の面積
+  # feature_avg_residual: float = 0.0 # 残差の平均
+  # feature_distance_from_centroid_of_sensors_to_vn_maximized = 0.0 # sensorの重心とvanish nodeまでの最大距離
+  # feature_distance_from_center_of_field_to_target = 0.0 # フィールドの中心とtargetの距離
+
 
   # Learning Model
-  model_filename = config["model_filename"]
+  model_filename = config["model"]["filename"]
   model_filepath = "models/" + model_filename
   # model = joblib.load(model_filepath)
   print(f"{model_filename} was loaded.")
@@ -112,6 +114,8 @@ if __name__ == "__main__":
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
+
+
 
   # Make Folder and Save Config
   now = datetime.now()
@@ -176,13 +180,7 @@ if __name__ == "__main__":
           # feature_distance_from_centroid_of_sensors_to_vn_maximized += distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, target_estimated, channel, max_distance_measurement)
           # feature_distance_to_approximate_line += distance_from_sensors_to_approximate_line.calculate(sensors_available)
           
-          features = np.array([
-            feature_avg_residual,
-            feature_convex_hull_volume,
-            feature_distance_from_center_of_field_to_target,
-            feature_distance_from_centroid_of_sensors_to_vn_maximized,
-            feature_distance_to_approximate_line
-          ])
+
 
           # SVMによる判定
           # is_suitable_for_localization = model.predict(features)
@@ -195,12 +193,11 @@ if __name__ == "__main__":
             targets_localized_count = len(targets_localized)
 
             # 平均平方根誤差の算出
-            squared_error_list = np.append(squared_error_list, squared_error.calculate(target, target_estimated))
-
+            squared_error = distance_error_squared.calculate(target, target_estimated)
+            squared_error_list = np.append(squared_error_list, squared_error)
+              
             if targets_localized_count == targets_count:
               break
-
-            targets_not_localized = targets[~np.isin(targets, targets_localized).all(axis=1)]
 
             if is_cooperative_localization:
               sensors_original = np.append(sensors_original, [target], axis=0)
@@ -208,8 +205,6 @@ if __name__ == "__main__":
       else:
         continue
       break
-
-    targets_not_localized = targets[~np.isin(targets, targets_localized).all(axis=1)]
     
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
@@ -239,10 +234,10 @@ if __name__ == "__main__":
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
   # RMSEの累積分布関数を出力
-  root_mean_squared_error_range = np.arange(0, 10, 0.01)
-  cumulative_distribution_function = norm.cdf(root_mean_squared_error_range, loc=np.mean(root_mean_squared_error_range), scale=np.std(root_mean_squared_error_range))
+  root_mean_squared_error_list_sorted = np.sort(root_mean_squared_error_list)
+  cumulative_distribution_function = np.cumsum(root_mean_squared_error_list_sorted)/np.sum(root_mean_squared_error_list_sorted)
   cumulative_distribution_function_data = pd.DataFrame({
-    "RMSE": root_mean_squared_error_range,
+    "RMSE": root_mean_squared_error_list_sorted,
     "CDF": cumulative_distribution_function
   })
   cdf_filename = "cumulative_distribution_function.csv"
