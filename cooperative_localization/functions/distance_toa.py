@@ -2,7 +2,6 @@ import math
 import random
 import numpy as np
 
-from array import array
 from functions import awgn
 
 def calculate(channel: dict, max_distance_measurement: int, distance_accurate: float)-> dict:
@@ -19,7 +18,7 @@ def calculate(channel: dict, max_distance_measurement: int, distance_accurate: f
   if distance_accurate == 0.0:
     distance_accurate = 10**(-8)
   
-  for toa_distance in range(max_distance_measurement):
+  for distance_measurement in range(max_distance_measurement):
     is_los = channel["los"]["probability"] > random.uniform(0, 1)
     if is_los:
       pass_loss: float = 0.0
@@ -47,3 +46,6 @@ def calculate(channel: dict, max_distance_measurement: int, distance_accurate: f
       distance_estimated = 0.0
     distance_estimated /= max_distance_measurement
   return distance_estimated
+
+# Example Usage
+# import awgn

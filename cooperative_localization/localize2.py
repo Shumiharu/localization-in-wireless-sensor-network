@@ -26,7 +26,6 @@ import yaml
 import joblib
 import pandas as pd
 from datetime import datetime
-from scipy.stats import norm
 
 # 基本関数
 from functions import distance_toa
@@ -40,7 +39,7 @@ from functions import distance_from_sensors_to_approximate_line
 from functions import distance_from_centroid_of_sensors_to_vn_maximized
 from functions import distance_from_center_of_field_to_target
 from functions import convex_hull_volume
-from functions import avg_residual
+from functions import residual_avg
 
 # 結果算出
 from functions import rmse_distribution
@@ -48,8 +47,6 @@ from functions import localizable_probability_distribution
 
 
 if __name__ == "__main__":
-  print("Coopolative Positioning Time of Arrival")
-
   # Open configuration file
   config_filename = "config_0.yaml"
   config_filepath = "configs/" + config_filename
@@ -59,7 +56,18 @@ if __name__ == "__main__":
 
   # Cooperative Localization or not
   is_cooperative_localization = config["localization"]["is_cooperative"]
-  print("Cooperative Mode" if is_cooperative_localization else "Incooperative Mode")
+  print("Localization: Least Square (LS) Method", end=" ")
+  print("with Cooperation" if is_cooperative_localization else "without Cooperation")
+
+  # Learning Model
+  is_predictive = config["localization"]["is_predictive"]
+  if is_predictive:
+    model_filename = config["model"]["filename"]
+    model_filepath = "models/" + model_filename
+    model = joblib.load(model_filepath)
+    print(f"Error Prediction by Machine Learning (model: {model_filename})")
+  else:
+    print("No Error Prediction")
 
   # Field Config
   field_range = config["field_range"]
@@ -95,27 +103,10 @@ if __name__ == "__main__":
   newton_raphson_max_loop: int = config["localization"]["newton_raphson"]["max_loop"] # Newton Raphson 計算回数の最大
   newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
 
-  # Feature 
-  # feature_error = 0.0 # 測距誤差
-  # feature_distance_to_approximate_line: float = 0.0 # sensorとsensorから線形回帰して得られる近似直線の距離の平均
-  # feature_convex_hull_volume: float = 0.0 # 凸包の面積
-  # feature_avg_residual: float = 0.0 # 残差の平均
-  # feature_distance_from_centroid_of_sensors_to_vn_maximized = 0.0 # sensorの重心とvanish nodeまでの最大距離
-  # feature_distance_from_center_of_field_to_target = 0.0 # フィールドの中心とtargetの距離
-
-
-  # Learning Model
-  model_filename = config["model"]["filename"]
-  model_filepath = "models/" + model_filename
-  # model = joblib.load(model_filepath)
-  print(f"{model_filename} was loaded.")
-  
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
-
-
 
   # Make Folder and Save Config
   now = datetime.now()
@@ -140,8 +131,8 @@ if __name__ == "__main__":
     # ターゲット
     targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
 
-    # 測位されたターゲット
-    targets_localized: np.ndarray = np.empty((0, 3))
+    # 測位されたターゲット（推定座標ではないので注意）
+    # targets_localized: np.ndarray = np.empty((0, 3))
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
@@ -149,19 +140,18 @@ if __name__ == "__main__":
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
         sensors_available: np.ndarray = np.empty((0, 3))
-        distances_estimated: np.ndarray = np.array([])
+        distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
-            distance_estimated = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
-            if not np.isinf(distance_estimated):
+            distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+            distances_measured = np.append(distances_measured, distance_measured)
+            if not np.isinf(distance_measured):
               sensors_available = np.append(sensors_available, [sensor], axis=0)
-              distances_estimated = np.append(distances_estimated, distance_estimated) # targetとの距離
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
+        distances_estimated = distances_measured[~np.isinf(distances_measured)]
         is_localizable = len(distances_estimated) >= 3
-
-
         if not is_localizable:
           continue
         
@@ -174,29 +164,31 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_estimated)):
 
           # 特徴量の計算
-          # feature_avg_residual += avg_residual.calculate(sensors_available, target_estimated)
-          # feature_convex_hull_volume += convex_hull_volume.calculate(sensors_available)
-          # feature_distance_from_center_of_field_to_target += distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          # feature_distance_from_centroid_of_sensors_to_vn_maximized += distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, target_estimated, channel, max_distance_measurement)
-          # feature_distance_to_approximate_line += distance_from_sensors_to_approximate_line.calculate(sensors_available)
-          
+          feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
+          feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
+          feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
+          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, distances_measured, target_estimated)
+          feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
 
+          features = np.array([
+            feature_avg_residual,
+            feature_convex_hull_volume,
+            feature_distance_from_center_of_field_to_target,
+            feature_distance_from_centroid_of_sensors_to_vn_maximized,
+            feature_distance_to_approximate_line
+          ])
 
           # SVMによる判定
-          # is_suitable_for_localization = model.predict(features)
-          is_suitable_for_localization = True
-          if is_suitable_for_localization:
-
-            # 測位フラグの更新
-            target[2], target_estimated[2] = 1, 1
-            targets_localized = np.append(targets_localized, [target], axis=0)
-            targets_localized_count = len(targets_localized)
-
+          if not is_predictive or (is_predictive and not model.predict([features])):
             # 平均平方根誤差の算出
             squared_error = distance_error_squared.calculate(target, target_estimated)
             squared_error_list = np.append(squared_error_list, squared_error)
-              
-            if targets_localized_count == targets_count:
+
+            # 測位フラグの更新
+            target[2], target_estimated[2] = 1, 1
+            targets_localized = targets[targets[:, 2] == 1] # 推定座標ではないので注意
+            # targets_localized = np.append(targets_localized, [target], axis=0)
+            if len(targets_localized) == targets_count:
               break
 
             if is_cooperative_localization:
@@ -208,7 +200,7 @@ if __name__ == "__main__":
     
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
-    targets_localized_count_total += targets_localized_count
+    targets_localized_count_total += len(targets_localized)
     mean_squared_error = squared_error_total/targets_localized_count_total
     root_mean_squared_error = np.sqrt(mean_squared_error)
     
@@ -270,3 +262,6 @@ if __name__ == "__main__":
   print(f"{field_localizable_probability_distribution_filename} was saved in {field_localizable_probability_distribution_filepath}.")
 
 print("\ncomplete.")
+
+# メモ
+# ホップした数の平均をとってそのRMSEを算出

@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print(f"{config_filename} was loaded.")
 
   # サンプルデータの読み出し
-  sample_filename = "sample_0.csv"
+  sample_filename = "sample_1.csv"
   sample_filepath = "samples/" + sample_filename
   features_data = pd.read_csv(sample_filepath)
   features_list = features_data.to_numpy()

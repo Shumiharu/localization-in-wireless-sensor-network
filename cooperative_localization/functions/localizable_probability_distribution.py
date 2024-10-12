@@ -2,13 +2,14 @@ import numpy as np
 
 def update(field_distribution: np.ndarray, grid_interval: float, targets: np.ndarray, targets_localized: np.ndarray):
   for target in targets:
-    is_localized = np.any(np.all(targets_localized == target, axis=1))
+    # is_localized = np.any(np.all(targets_localized == target, axis=1))
+    is_localized = target[2]
 
     target_rounded = np.round(target, decimal_places(grid_interval))
     indices = np.where(np.all(np.isclose(field_distribution[:, :2], target_rounded[:2]), axis=1))[0]
     for index in indices:
       data_count = field_distribution[index, 3]
-      field_distribution[index, 2] = (field_distribution[index, 2]*data_count + int(is_localized))/(data_count + 1)
+      field_distribution[index, 2] = (field_distribution[index, 2]*data_count + is_localized)/(data_count + 1)
       field_distribution[index, 3] += 1
   return field_distribution
 

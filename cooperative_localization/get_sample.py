@@ -18,7 +18,7 @@ from functions import distance_from_sensors_to_approximate_line
 from functions import distance_from_centroid_of_sensors_to_vn_maximized
 from functions import distance_from_center_of_field_to_target
 from functions import convex_hull_volume
-from functions import avg_residual
+from functions import residual_avg
 
 # 結果算出
 from functions import rmse_distribution
@@ -26,8 +26,6 @@ from functions import localizable_probability_distribution
 
 
 if __name__ == "__main__":
-  print("Coopolative Positioning Time of Arrival")
-
   # Open configuration file
   config_filename = "config_0.yaml"
   config_filepath = "configs/" + config_filename
@@ -37,7 +35,8 @@ if __name__ == "__main__":
 
   # Cooperative Localization or not
   is_cooperative_localization = config["localization"]["is_cooperative"]
-  print("Cooperative Mode" if is_cooperative_localization else "Incooperative Mode")
+  print("Localization: Least Square (LS) Method", end=" ")
+  print("with Cooperation" if is_cooperative_localization else "without Cooperation")
 
   # Field Config
   field_range = config["field_range"]
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
 
     # 測位されたターゲット
-    targets_localized: np.ndarray = np.empty((0, 3))
+    # targets_localized: np.ndarray = np.empty((0, 3))
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
@@ -122,19 +121,18 @@ if __name__ == "__main__":
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
         sensors_available: np.ndarray = np.empty((0, 3))
-        distances_estimated: np.ndarray = np.array([])
+        distances_measured: np.ndarray = np.array([])
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
-            distance_estimated = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
-            if not np.isinf(distance_estimated):
+            distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+            distances_measured = np.append(distances_measured, distance_measured)
+            if not np.isinf(distance_measured):
               sensors_available = np.append(sensors_available, [sensor], axis=0)
-              distances_estimated = np.append(distances_estimated, distance_estimated) # targetとの距離
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
+        distances_estimated = distances_measured[~np.isinf(distances_measured)]
         is_localizable = len(distances_estimated) >= 3
-
-
         if not is_localizable:
           continue
         
@@ -147,10 +145,10 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_estimated)):
         
           # 特徴量の計算
-          feature_avg_residual = avg_residual.calculate(sensors_available, target_estimated)
+          feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, target_estimated, channel, max_distance_measurement)
+          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, distances_estimated, target_estimated)
           feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
 
           features = np.array([
@@ -159,13 +157,7 @@ if __name__ == "__main__":
             feature_distance_from_center_of_field_to_target,
             feature_distance_from_centroid_of_sensors_to_vn_maximized,
             feature_distance_to_approximate_line,
-            
           ])
-
-          # 測位フラグの更新
-          target[2], target_estimated[2] = 1, 1
-          targets_localized = np.append(targets_localized, [target], axis=0)
-          targets_localized_count = len(targets_localized)
 
           # 平均平方根誤差の算出
           squared_error = distance_error_squared.calculate(target, target_estimated)
@@ -174,14 +166,15 @@ if __name__ == "__main__":
           # 誤差の特徴量はfeaturesの配列の一番最後に
           feature_error = np.sqrt(squared_error)
           features = np.append(features, feature_error)
-
           if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < model_sample:
             features_list = np.append(features_list, [features], axis=0)
-
           if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < model_sample:
             features_list = np.append(features_list, [features], axis=0)
-              
-          if targets_localized_count == targets_count:
+
+          # 測位フラグの更新
+          target[2], target_estimated[2] = 1, 1
+          targets_localized = targets[targets[:, 2] == 1]
+          if len(targets_localized) == targets_count:
             break
 
           if is_cooperative_localization:
@@ -193,7 +186,7 @@ if __name__ == "__main__":
     
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
-    targets_localized_count_total += targets_localized_count
+    targets_localized_count_total += len(targets_localized)
     mean_squared_error = squared_error_total/targets_localized_count_total
     root_mean_squared_error = np.sqrt(mean_squared_error)
       
@@ -220,7 +213,6 @@ if __name__ == "__main__":
     print("Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
   print("\n")
 
-
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
   features_data = pd.DataFrame({
@@ -231,7 +223,7 @@ if __name__ == "__main__":
     "distance_to_approximate_line": features_list[:, 4],
     "error": features_list[:, 5]
   })
-  sample_filename = "sample_0.csv"
+  sample_filename = "sample_1.csv"
   sample_filepath = "samples/" + sample_filename
   features_data.to_csv(sample_filepath, index=False)
   print(f"{sample_filename} was saved in {sample_filepath}")
