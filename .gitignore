@@ -1,12 +1,12 @@
 .DS_Store
 .vscode
 cooperative_localization/functions/__pycache__
-./cooperative_localization/output/*
-!./cooperative_localization/output/
-./cooperative_localization/models/*
-!./cooperative_localization/models/
-./cooperative_localization/samples/*
-!./cooperative_localization/samples/
-./fingerprinting/output/*
-!./fingerprinting/output/
+cooperative_localization/output/*
+!cooperative_localization/output/
+cooperative_localization/models/*
+!cooperative_localization/models/
+cooperative_localization/samples/*
+!cooperative_localization/samples/
+fingerprinting/output/*
+!fingerprinting/output/
 
