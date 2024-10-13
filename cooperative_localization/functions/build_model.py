@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 import pandas as pd
 import yaml
@@ -10,26 +12,36 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 
 if __name__ == "__main__":
-  # 設定の読み出し
+  
+  args = sys.argv
+  is_subprocess = True if len(args) == 2 else False
+
+  # Open configuration file
   config_filename = "config_0.yaml"
-  config_filepath = "configs/" + config_filename
+  config_filepath = "../configs/" + config_filename
+  if is_subprocess:
+    config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded.")
+    print(f"{config_filename} was loaded from {config_filepath}")
 
   # サンプルデータの読み出し
-  sample_filename = "sample_1.csv"
-  sample_filepath = "samples/" + sample_filename
-  features_data = pd.read_csv(sample_filepath)
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_filepath = "../sample_data/" + sample_data_filename
+  features_data = pd.read_csv(sample_data_filepath)
   features_list = features_data.to_numpy()
-  print(f"{sample_filename} was loaded.")
+  print(f"{sample_data_filename} was loaded.")
 
-  # RMSEが大きいデータを抽出
+  # Model
+  model_filename = config["model"]["filename"]
+  model_filepath = "../models/" + model_filename
   error_threshold = config["model"]["error_threshold"]
-  lables = np.where(features_list[:, -1] >= error_threshold, 1, 0)
+
+  # 正解ラベル
+  labels = np.where(features_list[:, -1] >= error_threshold, 1, 0)
 
   # 学習用と評価をランダムに抽出
-  explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_list[:, :-1], lables, stratify=lables, random_state=0)
+  explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_list[:, :-1], labels, stratify=labels, random_state=0)
 
   # SVMのパイプラインを作成
   pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))
@@ -48,14 +60,12 @@ if __name__ == "__main__":
     n_jobs= -1,
     error_score="raise"
   ).fit(explanatory_variables_train, lables_train)
-
-  # print(grid_search.best_score_)
-  # print(grid_search.best_params_)
+  print(f"grid_search.best_score_: {grid_search.best_score_}")
+  print(f"grid_search.best_params_: {grid_search.best_params_}")
 
   # 最適パラメータを用いてモデルを作成・保存
   model = grid_search.best_estimator_.fit(explanatory_variables_train, lables_train)
-  model_filename = "model_0.pkl"
-  model_filepath = "models/" + model_filename
   joblib.dump(model, model_filepath)
-  print(f"{model_filename} was created in {model_filepath}")
+
+  print(f"{model_filename} was built in {model_filepath}")
 

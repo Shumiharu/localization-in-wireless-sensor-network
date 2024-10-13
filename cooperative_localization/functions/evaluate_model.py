@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 import pandas as pd
 import yaml
@@ -7,23 +9,29 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import accuracy_score
 
 if __name__ == "__main__":
+
+  args = sys.argv
+  is_subprocess = True if len(args) == 2 else False
+
   # Open configuration file
   config_filename = "config_0.yaml"
-  config_filepath = "configs/" + config_filename
+  config_filepath = "../configs/" + config_filename
+  if is_subprocess:
+    config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded")
+    print(f"{config_filename} was loaded from {config_filepath}")
 
   # サンプルデータの読み出し
-  sample_filename = "sample_1.csv"
-  sample_filepath = "samples/" + sample_filename
-  features_data = pd.read_csv(sample_filepath)
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_filepath = "../sample_data/" + sample_data_filename
+  features_data = pd.read_csv(sample_data_filepath)
   features_list = features_data.to_numpy()
-  print(f"{sample_filename} was loaded.")
+  print(f"{sample_data_filename} was loaded.")
   
   # モデルの読み出し
-  model_filename = "model_0.pkl"
-  model_filepath = "models/" + model_filename
+  model_filename = config["model"]["filename"]
+  model_filepath = "../models/" + model_filename
   model = joblib.load(model_filepath)
 
   error_threshold = config["model"]["error_threshold"]

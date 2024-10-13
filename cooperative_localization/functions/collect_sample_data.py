@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import random
 import yaml
@@ -7,31 +8,37 @@ import pandas as pd
 from datetime import datetime
 
 # 基本関数
-from functions import distance_toa
-from functions import normalization
-from functions import line_of_position
-from functions import newton_raphson
-from functions import distance_error_squared
+from basis import distance_toa
+from basis import normalization
+from basis import line_of_position
+from basis import newton_raphson
 
 # 特徴量の算出
-from functions import distance_from_sensors_to_approximate_line
-from functions import distance_from_centroid_of_sensors_to_vn_maximized
-from functions import distance_from_center_of_field_to_target
-from functions import convex_hull_volume
-from functions import residual_avg
+from feature import distance_from_sensors_to_approximate_line
+from feature import distance_from_centroid_of_sensors_to_vn_maximized
+from feature import distance_from_center_of_field_to_target
+from feature import convex_hull_volume
+from feature import residual_avg
+from feature import distance_error_squared
 
 # 結果算出
-from functions import rmse_distribution
-from functions import localizable_probability_distribution
+from result import rmse_distribution
+from result import localizable_probability_distribution
 
 
 if __name__ == "__main__":
+  
+  args = sys.argv
+  is_subprocess = True if len(args) == 2 else False
+
   # Open configuration file
   config_filename = "config_0.yaml"
-  config_filepath = "configs/" + config_filename
+  config_filepath = "../configs/" + config_filename
+  if is_subprocess:
+    config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded")
+    print(f"{config_filename} was loaded from {config_filepath}")
 
   # Cooperative Localization or not
   is_cooperative_localization = config["localization"]["is_cooperative"]
@@ -60,12 +67,16 @@ if __name__ == "__main__":
     print(f"({anchor_x}, {anchor_y})", end=" ")
   print(f"\n=> anchor count: {len(anchors)}")
 
-  targets_count: int = config["targets"]["count"]
-  print("target: (x, y) = random")
-  print(f"=> target count: {targets_count}", end="\n\n")
+  targets = np.array([[field_range["x_top"]*i/8.0, field_range["y_top"]*j/8.0, 0.0] for i in [3, 5, 7] for j in [3, 5, 7]])
+  targets_count: int = len(targets)
+  print("target: (x, y) = ", end="")
+  for target in targets:
+    target_x = target[0]
+    target_y = target[1]
+    print(f"({target_x}, {target_y})", end=" ")
+  print(f"\n=> anchor count: {len(targets)}")
 
   # Localization Config
-  # sim_cycles = config["sim_cycles"] # シミュレーション回数
   max_localization_loop = config["localization"]["max_loop"] # 最大測位回数
   channel = config["channel"] # LOSなどのチャネルを定義
   max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 測距回数の最大（この回数が多いほど通信における再送回数が多くなる）
@@ -75,45 +86,34 @@ if __name__ == "__main__":
   # Feature 
   features_list = np.empty((0, 6))
 
-  # Learning Model
-  # model_filename = config["model"]["filename"]
-  # model_filepath = "models/" + model_filename
-  # model = joblib.load(model_filepath)
-  model_sample = config["model"]["sample"]
+  # Sample
+  sample_data_count = config["sample_data"]["count"]
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_filepath = "../sample_data/" + sample_data_filename
+
+  # Model
   error_threshold = config["model"]["error_threshold"]
-  # print(f"{model_filename} was loaded.")
   
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
   sim_cycle = 0
-
-  # Make Folder and Save Config
-  # now = datetime.now()
-  # output_dirname = now.strftime("%Y-%m-%d_%H-%M-%S")
-  # output_dirpath = "output/" + output_dirname
-  # os.makedirs(output_dirpath, exist_ok=True)
-  # print(f"{output_dirname} was created.")
-
-  # config_saved_filepath = os.path.join(output_dirpath, 'config.yaml')
-  # with open(config_saved_filepath, "w") as config_saved_file:
-  #   yaml.safe_dump(config, config_saved_file)
-  #   print(f"{config_filename} was saved.")
   
-  print("", end="\n")
+  print("\n")
 
   # シミュレーション開始
-  while np.sum(features_list[:, -1] < error_threshold) < model_sample or np.sum(features_list[:, -1] >= error_threshold) < model_sample:
-    # sensor は anchor + reference で構成
+  while np.sum(features_list[:, -1] < error_threshold) < sample_data_count or np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+    # sensor は anchor node と reference node で構成
     sensors_original: np.ndarray = np.array([[anchor["x"], anchor["y"], 1] for anchor in anchors]) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
-    targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
-
-    # 測位されたターゲット
-    # targets_localized: np.ndarray = np.empty((0, 3))
+    # targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
+    # 測位フラッグのリセット
+    targets[:, 2] = 0.0
+    rng = np.random.default_rng()
+    rng.shuffle(targets, axis=0)
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
@@ -166,9 +166,9 @@ if __name__ == "__main__":
           # 誤差の特徴量はfeaturesの配列の一番最後に
           feature_error = np.sqrt(squared_error)
           features = np.append(features, feature_error)
-          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < model_sample:
+          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
             features_list = np.append(features_list, [features], axis=0)
-          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < model_sample:
+          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
             features_list = np.append(features_list, [features], axis=0)
 
           # 測位フラグの更新
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     sim_cycle += 1
     positive = np.sum(features_list[:, -1] < error_threshold)
     negative = np.sum(features_list[:, -1] >= error_threshold)
-    print(f"positive: {positive}/{model_sample} negative: {negative}/{model_sample}", end=" ")
+    print(f"positive: {positive}/{sample_data_count} negative: {negative}/{sample_data_count}", end=" ")
     print("Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
   print("\n")
 
@@ -223,10 +223,9 @@ if __name__ == "__main__":
     "distance_to_approximate_line": features_list[:, 4],
     "error": features_list[:, 5]
   })
-  sample_filename = "sample_1.csv"
-  sample_filepath = "samples/" + sample_filename
-  features_data.to_csv(sample_filepath, index=False)
-  print(f"{sample_filename} was saved in {sample_filepath}")
+
+  features_data.to_csv(sample_data_filepath, index=False)
+  print(f"{sample_data_filename} was saved in {sample_data_filepath}")
 
   # RMSEの累積分布関数を出力
   # root_mean_squared_error_range = np.arange(0, 10, 0.01)
@@ -264,4 +263,4 @@ if __name__ == "__main__":
   # field_localizable_probability_distribution_data.to_csv(field_localizable_probability_distribution_filepath, index=False)
   # print(f"{field_localizable_probability_distribution_filename} was saved in {field_localizable_probability_distribution_filepath}.")
 
-print("\ncomplete.")
+  print("\ncomplete.")

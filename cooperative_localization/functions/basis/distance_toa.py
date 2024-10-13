@@ -2,7 +2,7 @@ import math
 import random
 import numpy as np
 
-from functions import awgn
+from basis import awgn
 
 def calculate(channel: dict, max_distance_measurement: int, distance_accurate: float)-> dict:
   tx_power: float = channel["tx_power"]
