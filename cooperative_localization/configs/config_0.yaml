@@ -41,14 +41,16 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_yamamoto.csv
+  filename: sample_data_0.csv
+  # filename: sample_data_yamamoto.csv
   count: 50000
 model:
   # filename: model_yamamoto.pkl
-  filename: model_4.pkl
+  filename: model_0.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_yamamoto.csv
+  filename: evaluation_data_0.csv
+  # filename: evaluation_data_yamamoto.csv
   count: 50000
 sim_cycles: 10000

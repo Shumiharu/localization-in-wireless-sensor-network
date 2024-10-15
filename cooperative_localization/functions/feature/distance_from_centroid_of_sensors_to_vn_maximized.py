@@ -38,16 +38,6 @@ def calculate(sensors: np.ndarray, distances_measured: np.ndarray) -> float:
 #     return distance_from_centroid_of_sensors_available_to_unavailable_maximized
 
 # Example Usage
-# Open configuration file
-# config_filename = "config_0.yaml"
-# config_filepath = "../../configs/" + config_filename
-# with open(config_filepath, "r") as config_file:
-#     config = yaml.safe_load(config_file)
-# print(f"{config_filename} was loaded from {config_filepath}")
-# channel = config["channel"]
-# max_distance_measurement = config["localization"]["max_distance_measurement"]
-sensors = np.array([[10.0, 10.0, 1.0], [20.0, 10.0, 1.0], [10.0, 20.0, 1.0], [20.0, 20.0, 1.0]])
-# target_estimated = np.array([20.0180388, 11.52676422, 0.])
-distances_measured = np.array([10.49793249, 0.63111357, -np.inf, 8.23798477])
+# sensors = np.array([[10.0, 10.0, 1.0], [20.0, 10.0, 1.0], [10.0, 20.0, 1.0], [20.0, 20.0, 1.0]])
+# distances_measured = np.array([10.49793249, 0.63111357, -np.inf, 8.23798477])
 # print(f"distance_from_centroid_of_sensors_available_to_unavailable_maximized = {calculate(sensors, distances_measured)}")
-print(f"distance_from_centroid_of_sensors_available_to_unavailable_maximized = {calculate(sensors, distances_measured)}")
