@@ -33,8 +33,8 @@ anchors:
 targets: 
   count: 20
 localization:
-  is_cooperative: false
-  is_predictive: false
+  is_cooperative: true
+  is_predictive: true
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
@@ -44,10 +44,10 @@ sample_data:
   filename: sample_data_0.csv
   count: 50000
 model:
-  filename: model_0.pkl
+  filename: model_nn.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
-evaluation:
+evaluation_data:
   filename: evaluate_data_0.csv
   count: 50000
 sim_cycles: 10000

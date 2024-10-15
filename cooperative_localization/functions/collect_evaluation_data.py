@@ -82,9 +82,10 @@ if __name__ == "__main__":
   features_list = np.empty((0, 6))
 
   # Evaluation
-  evaluation_count = config["evaluation"]["count"]
-  evaluation_data_filename = config["evaluation"]["filename"]
+  evaluation_count = config["evaluation_data"]["count"]
+  evaluation_data_filename = config["evaluation_data"]["filename"]
   evaluation_data_filepath = "../evaluation_data/" + evaluation_data_filename
+  print(f"{evaluation_data_filename} will be saved in {evaluation_data_filepath}.")
 
   # Model
   error_threshold = config["model"]["error_threshold"]
@@ -113,7 +114,7 @@ if __name__ == "__main__":
       for target in targets:
         sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([])
-        if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
+        if target[2] == 0: # TNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
@@ -127,6 +128,8 @@ if __name__ == "__main__":
         if not is_localizable:
           continue
         
+        if not len(distances_measured) == len(sensors):
+          print("おおお")
         # 測位
         target_estimated = line_of_position.calculate(sensors_available, distances_estimated) # Line of Positionによる初期解の算出
         target_estimated = newton_raphson.calculate(sensors_available, distances_estimated, target_estimated, newton_raphson_max_loop, newton_raphson_threshold) # Newton Raphson法による最適解の算出
@@ -139,7 +142,7 @@ if __name__ == "__main__":
           feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, distances_estimated, target_estimated)
+          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors, distances_measured)
           feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
 
           features = np.array([
@@ -217,5 +220,3 @@ if __name__ == "__main__":
 
   features_data.to_csv(evaluation_data_filepath, index=False)
   print(f"{evaluation_data_filename} was saved in {evaluation_data_filepath}")
-
-  print("\ncomplete.")

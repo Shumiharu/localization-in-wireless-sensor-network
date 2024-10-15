@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
   # 正解ラベル
   labels = np.where(features_list[:, -1] >= error_threshold, 1, 0)
+  # labels = features_list[:, -1] # 山本先輩結果合わせのため
 
   # 学習用と評価をランダムに抽出
   explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_list[:, :-1], labels, stratify=labels, random_state=0)
