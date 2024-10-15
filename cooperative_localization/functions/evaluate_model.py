@@ -26,7 +26,7 @@ if __name__ == "__main__":
   evaluation_data_filepath = "../evaluation_data/" + evaluation_data_filename
   features_evaluation_data = pd.read_csv(evaluation_data_filepath)
   features_evaluation_list = features_evaluation_data.to_numpy()
-  print(f"{evaluation_data_filename} was loaded from {evaluation_data_filepath}.")
+  print(f"{evaluation_data_filename} was loaded from {evaluation_data_filepath}")
   
   # Load Model File
   model_filename = config["model"]["filename"]
@@ -35,7 +35,8 @@ if __name__ == "__main__":
   print(f"{model_filename} was loaded from {model_filepath}.")
 
   error_threshold = config["model"]["error_threshold"]
-  labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)
+  # labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)
+  labels = features_evaluation_list[:, -1]
   predicted = model.predict(features_evaluation_list[:, :-1])
 
   print(f"accuracy_score: {accuracy_score(y_true=labels, y_pred=predicted)}")

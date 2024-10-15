@@ -29,7 +29,7 @@ if __name__ == "__main__":
   sample_data_filename = config["sample_data"]["filename"]
   sample_data_filepath = "../sample_data/" + sample_data_filename
   features_data = pd.read_csv(sample_data_filepath)
-  features_list = features_data.to_numpy()
+  features_sample_list = features_data.to_numpy()
   print(f"{sample_data_filename} was loaded.")
 
   # Model
@@ -38,11 +38,11 @@ if __name__ == "__main__":
   error_threshold = config["model"]["error_threshold"]
 
   # 正解ラベル
-  labels = np.where(features_list[:, -1] >= error_threshold, 1, 0)
-  # labels = features_list[:, -1] # 山本先輩結果合わせのため
+  # labels = np.where(features_sample_list[:, -1] >= error_threshold, 1, 0)
+  labels = features_sample_list[:, -1] # 山本先輩結果合わせのため
 
   # 学習用と評価をランダムに抽出
-  explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_list[:, :-1], labels, stratify=labels, random_state=0)
+  explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_sample_list[:, :-1], labels, stratify=labels, random_state=0)
 
   # SVMのパイプラインを作成
   pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))

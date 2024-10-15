@@ -8,37 +8,37 @@ import pandas as pd
 from datetime import datetime
 
 # 基本関数
-from basis import distance_toa
-from basis import normalization
-from basis import line_of_position
-from basis import newton_raphson
+# from functions import distance_toa
+# from functions import normalization
+# from functions import line_of_position
+# from functions import newton_raphson
+# from functions import distance_error_squared
+
+import distance_toa
+import normalization
+import line_of_position
+import newton_raphson
+import distance_error_squared
 
 # 特徴量の算出
-from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_centroid_of_sensors_to_vn_maximized
-from feature import distance_from_center_of_field_to_target
-from feature import convex_hull_volume
-from feature import residual_avg
-from feature import distance_error_squared
+# from functions import distance_from_sensors_to_approximate_line
+# from functions import distance_from_centroid_of_sensors_to_vn_maximized
+# from functions import distance_from_center_of_field_to_target
+# from functions import convex_hull_volume
+# from functions import residual_avg
+import distance_from_sensors_to_approximate_line
+import distance_from_centroid_of_sensors_to_vn_maximized
+import distance_from_center_of_field_to_target
+import convex_hull_volume
+import residual_avg
 
 # 結果算出
-from result import rmse_distribution
-from result import localizable_probability_distribution
+# from functions import rmse_distribution
+# from functions import localizable_probability_distribution
+import rmse_distribution
+import localizable_probability_distribution
 
-
-if __name__ == "__main__":
-  
-  args = sys.argv
-  is_subprocess = True if len(args) == 2 else False
-
-  # Open configuration file
-  config_filename = "config_0.yaml"
-  config_filepath = "../configs/" + config_filename
-  if is_subprocess:
-    config_filepath = os.path.join(args[1], "config.yaml")
-  with open(config_filepath, "r") as config_file:
-    config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded from {config_filepath}")
+def collect(config: dict):
 
   # Cooperative Localization or not
   is_cooperative_localization = config["localization"]["is_cooperative"]
@@ -56,22 +56,13 @@ if __name__ == "__main__":
 
   width = field_range["x_top"] - field_range["x_bottom"]
   height = field_range["y_top"] - field_range["y_bottom"]
-  print(f"field: {width} x {height}")
 
   # Anchors & Targets Config
   anchors = config["anchors"]
-  print("anchor: (x, y) = ", end="")
-  for anchor in anchors:
-    anchor_x = anchor["x"]
-    anchor_y = anchor["y"]
-    print(f"({anchor_x}, {anchor_y})", end=" ")
-  print(f"\n=> anchor count: {len(anchors)}")
-
   targets_count: int = config["targets"]["count"]
-  print("target: (x, y) = random")
-  print(f"=> target count: {targets_count}", end="\n\n")
 
   # Localization Config
+  # sim_cycles = config["sim_cycles"] # シミュレーション回数
   max_localization_loop = config["localization"]["max_loop"] # 最大測位回数
   channel = config["channel"] # LOSなどのチャネルを定義
   max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 測距回数の最大（この回数が多いほど通信における再送回数が多くなる）
@@ -81,14 +72,13 @@ if __name__ == "__main__":
   # Feature 
   features_list = np.empty((0, 6))
 
-  # Evaluation
-  evaluation_count = config["evaluation_data"]["count"]
-  evaluation_data_filename = config["evaluation_data"]["filename"]
-  evaluation_data_filepath = "../evaluation_data/" + evaluation_data_filename
-  print(f"{evaluation_data_filename} will be saved in {evaluation_data_filepath}.")
-
-  # Model
+  # Learning Model
+  # model_filename = config["model"]["filename"]
+  # model_filepath = "models/" + model_filename
+  # model = joblib.load(model_filepath)
+  model_sample = config["model"]["sample"]
   error_threshold = config["model"]["error_threshold"]
+  # print(f"{model_filename} was loaded.")
   
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
@@ -96,11 +86,11 @@ if __name__ == "__main__":
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
   sim_cycle = 0
   
-  print("\n")
+  print("", end="\n")
 
   # シミュレーション開始
-  while np.sum(features_list[:, -1] < error_threshold) < evaluation_count or np.sum(features_list[:, -1] >= error_threshold) < evaluation_count:
-    # sensor は anchor node と reference node で構成
+  while np.sum(features_list[:, -1] < error_threshold) < model_sample or np.sum(features_list[:, -1] >= error_threshold) < model_sample:
+    # sensor は anchor + reference で構成
     sensors_original: np.ndarray = np.array([[anchor["x"], anchor["y"], 1] for anchor in anchors]) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
@@ -112,15 +102,15 @@ if __name__ == "__main__":
 
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
-        # sensors_available: np.ndarray = np.empty((0, 3))
+        sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([])
-        if target[2] == 0: # TNがまだ測位されていなければ行う
+        if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-            # if not np.isinf(distance_measured):
-            #   sensors_available = np.append(sensors_available, [sensor], axis=0)
+            if not np.isinf(distance_measured):
+              sensors_available = np.append(sensors_available, [sensor], axis=0)
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
@@ -128,8 +118,6 @@ if __name__ == "__main__":
         if not is_localizable:
           continue
         
-        sensors_available = sensors[~np.isinf(distances_measured)]
-
         # 測位
         target_estimated = line_of_position.calculate(sensors_available, distances_estimated) # Line of Positionによる初期解の算出
         target_estimated = newton_raphson.calculate(sensors_available, distances_estimated, target_estimated, newton_raphson_max_loop, newton_raphson_threshold) # Newton Raphson法による最適解の算出
@@ -142,7 +130,7 @@ if __name__ == "__main__":
           feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors, distances_measured)
+          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, distances_estimated, target_estimated)
           feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
 
           features = np.array([
@@ -160,9 +148,9 @@ if __name__ == "__main__":
           # 誤差の特徴量はfeaturesの配列の一番最後に
           feature_error = np.sqrt(squared_error)
           features = np.append(features, feature_error)
-          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < evaluation_count:
+          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < model_sample:
             features_list = np.append(features_list, [features], axis=0)
-          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < evaluation_count:
+          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < model_sample:
             features_list = np.append(features_list, [features], axis=0)
 
           # 測位フラグの更新
@@ -203,13 +191,13 @@ if __name__ == "__main__":
     sim_cycle += 1
     positive = np.sum(features_list[:, -1] < error_threshold)
     negative = np.sum(features_list[:, -1] >= error_threshold)
-    print(f"positive: {positive}/{evaluation_count} negative: {negative}/{evaluation_count}", end=" ")
+    print(f"positive: {positive}/{model_sample} negative: {negative}/{model_sample}", end=" ")
     print("Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
   print("\n")
 
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
-  features_data = pd.DataFrame({
+  sample_data = pd.DataFrame({
     "avg_residual": features_list[:, 0],
     "convex_hull_volume": features_list[:, 1], 
     "distance_from_center_of_field_to_target": features_list[:, 2],
@@ -218,5 +206,56 @@ if __name__ == "__main__":
     "error": features_list[:, 5]
   })
 
-  features_data.to_csv(evaluation_data_filepath, index=False)
-  print(f"{evaluation_data_filename} was saved in {evaluation_data_filepath}")
+  # RMSEの累積分布関数を出力
+  # root_mean_squared_error_range = np.arange(0, 10, 0.01)
+  # cumulative_distribution_function = norm.cdf(root_mean_squared_error_range, loc=np.mean(root_mean_squared_error_range), scale=np.std(root_mean_squared_error_range))
+  # cumulative_distribution_function_data = pd.DataFrame({
+  #   "RMSE": root_mean_squared_error_range,
+  #   "CDF": cumulative_distribution_function
+  # })
+  # cdf_filename = "cumulative_distribution_function.csv"
+  # cdf_filepath = os.path.join(output_dirpath, cdf_filename)
+  # cumulative_distribution_function_data.to_csv(cdf_filepath, index=False)
+  # print(f"{cdf_filename} was saved in {cdf_filepath}.")
+  
+  # RMSEの分布を出力
+  # field_rmse_distribution_data = pd.DataFrame({
+  #   "x": field_rmse_distribution[:, 0],
+  #   "y": field_rmse_distribution[:, 1],
+  #   "RMSE": field_rmse_distribution[:, 2],
+  #   "data_count": field_rmse_distribution[:, 3],
+  # })
+  # field_rmse_distribution_filename = "field_rmse_distribution.csv"
+  # field_rmse_distribution_filepath = os.path.join(output_dirpath, field_rmse_distribution_filename)
+  # field_rmse_distribution_data.to_csv(field_rmse_distribution_filepath, index=False)
+  # print(f"{field_rmse_distribution_filename} was saved in {field_rmse_distribution_filepath}.")
+
+  # 測位可能確率の分布を出力
+  # field_localizable_probability_distribution_data = pd.DataFrame({
+  #   "x": field_localizable_probability_distribution[:, 0],
+  #   "y": field_localizable_probability_distribution[:, 1],
+  #   "localizable_probability": field_localizable_probability_distribution[:, 2],
+  #   "data_count": field_localizable_probability_distribution[:, 3],
+  # })
+  # field_localizable_probability_distribution_filename = "field_localizable_probability_distribution.csv"
+  # field_localizable_probability_distribution_filepath = os.path.join(output_dirpath, field_localizable_probability_distribution_filename)
+  # field_localizable_probability_distribution_data.to_csv(field_localizable_probability_distribution_filepath, index=False)
+  # print(f"{field_localizable_probability_distribution_filename} was saved in {field_localizable_probability_distribution_filepath}.")
+
+  return sample_data
+
+# Example Usage
+if __name__ == "__main__":
+  # Open configuration file
+  config_filename = "config_0.yaml"
+  config_filepath = "../configs/" + config_filename
+  with open(config_filepath, "r") as config_file:
+    config = yaml.safe_load(config_file)
+    print(f"{config_filename} was loaded")
+
+  sample_data: pd.DataFrame = collect(config)
+
+  sample_data_filename = "sample_0.csv"
+  sample_data_filepath = "../samples/" + sample_data_filename
+  sample_data.to_csv(sample_data_filepath, index=False)
+  print(f"{sample_data_filename} was saved in {sample_data_filepath}")

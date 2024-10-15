@@ -125,21 +125,23 @@ if __name__ == "__main__":
 
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
-        sensors_available: np.ndarray = np.empty((0, 3))
+        # sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-            if not np.isinf(distance_measured):
-              sensors_available = np.append(sensors_available, [sensor], axis=0)
+            # if not np.isinf(distance_measured):
+            #   sensors_available = np.append(sensors_available, [sensor], axis=0)
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
         is_localizable = len(distances_estimated) >= 3
         if not is_localizable:
           continue
+          
+        sensors_available = sensors[~np.isinf(distances_measured)]
         
         # 測位
         target_estimated = line_of_position.calculate(sensors_available, distances_estimated) # Line of Positionによる初期解の算出

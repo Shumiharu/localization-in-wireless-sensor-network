@@ -1,6 +1,9 @@
 .DS_Store
 .vscode
 cooperative_localization/functions/__pycache__
+cooperative_localization/functions/basis/__pycache__
+cooperative_localization/functions/feature/__pycache__
+cooperative_localization/functions/result/__pycache__
 
 cooperative_localization/output/**
 !cooperative_localization/output/**/
@@ -10,9 +13,13 @@ cooperative_localization/models/**
 !cooperative_localization/models/**/
 !cooperative_localization/models/**/.gitkeep
 
-cooperative_localization/samples/**
-!cooperative_localization/samples/**/
-!cooperative_localization/samples/**/.gitkeep
+cooperative_localization/sample_data/**
+!cooperative_localization/sample_data/**/
+!cooperative_localization/sample_data/**/.gitkeep
+
+cooperative_localization/evaluation_data/**
+!cooperative_localization/evaluation_data/**/
+!cooperative_localization/evaluation_data/**/.gitkeep
 
 fingerprinting/output/**
 !fingerprinting/output/**/

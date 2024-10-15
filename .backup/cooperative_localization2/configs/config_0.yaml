@@ -20,7 +20,7 @@ channel:
     standard_deviation: 0.809
     probability: 
   receiver_sensitivity_threshold: -48.0
-  distance_error: -.inf
+  distance_error: .inf
 anchors:
   - x: 10.0
     y: 10.0
@@ -34,21 +34,20 @@ targets:
   count: 20
 localization:
   is_cooperative: true
-  is_predictive: false
+  is_predictive: true
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
     max_loop: 10
     threshold: 10**(-8)
-sample_data:
-  filename: sample_data_yamamoto.csv
-  count: 50000
 model:
-  # filename: model_yamamoto.pkl
-  filename: model_4.pkl
+  filename: model_0.pkl
+  sample: 500
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
-evaluation_data:
-  filename: evaluation_data_yamamoto.csv
-  count: 50000
-sim_cycles: 10000
+launch_process:
+  get_sample: get_sample.py
+  build_model: build_model.py
+  evaluate_model: evaluate_model.py
+  localize: localize2.py
+sim_cycles: 1000
