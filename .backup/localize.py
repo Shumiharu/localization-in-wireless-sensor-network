@@ -83,7 +83,7 @@ if __name__ == "__main__":
   # Feature 
   feature_distance_to_approximate_line: float = 0.0 # sensorとsensorから線形回帰して得られる近似直線の距離の平均
   feature_convex_hull_volume: float = 0.0 # 凸包の面積
-  feature_avg_residual: float = 0.0 # 残差の平均
+  feature_residual_avg: float = 0.0 # 残差の平均
   feature_distance_from_centroid_of_sensors_to_vn_maximized = 0.0 # sensorの重心とvanish nodeまでの最大距離
   feature_distance_from_center_of_field_to_target = 0.0 # フィールドの中心とtargetの距離
 
@@ -137,14 +137,14 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_localized)):
 
           # 特徴量の計算
-          feature_avg_residual += residual_avg.calculate(sensors_available, target_localized)
+          feature_residual_avg += residual_avg.calculate(sensors_available, target_localized)
           feature_convex_hull_volume += convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target += distance_from_center_of_field_to_target.calculate(field_range, target_localized)
           feature_distance_from_centroid_of_sensors_to_vn_maximized += distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, target_localized, channel, max_distance_measurement)
           feature_distance_to_approximate_line += distance_from_sensors_to_approximate_line.calculate(sensors_available)
           
           features = np.array([
-            feature_avg_residual,
+            feature_residual_avg,
             feature_convex_hull_volume,
             feature_distance_from_center_of_field_to_target,
             feature_distance_from_centroid_of_sensors_to_vn_maximized,

@@ -21,6 +21,11 @@ cooperative_localization/evaluation_data/**
 !cooperative_localization/evaluation_data/**/
 !cooperative_localization/evaluation_data/**/.gitkeep
 
+cooperative_localization_without_feature_vn/output/**
+!cooperative_localization_without_feature_vn/output/**
+!cooperative_localization_without_feature_vn/output/**/.gitkeep
+
+
 fingerprinting/output/**
 !fingerprinting/output/**/
 !fingerprinting/output/**/.gitkeep

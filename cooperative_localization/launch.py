@@ -49,7 +49,8 @@ if __name__ == "__main__":
     try:
       command_collect_sample_data = f"cd functions && python collect_sample_data.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_collect_sample_data}')
-      process_collect_sample_data = subprocess.Popen(command_collect_sample_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+      # process_collect_sample_data = subprocess.Popen(command_collect_sample_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+      process_collect_sample_data = subprocess.Popen(command_collect_sample_data, shell=True)
     except subprocess.CalledProcessError as e:
       print(e)
       exit()
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     try:
       command_collect_evaluation_data = f"cd functions && python collect_evaluation_data.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_collect_evaluation_data}')
-      process_collect_evaluation_data = subprocess.Popen(command_collect_evaluation_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+      # process_collect_evaluation_data = subprocess.Popen(command_collect_evaluation_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+      process_collect_evaluation_data = subprocess.Popen(command_collect_evaluation_data, shell=True)
     except subprocess.CalledProcessError as e:
       print(e)
       exit()

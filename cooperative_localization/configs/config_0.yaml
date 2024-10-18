@@ -34,23 +34,23 @@ targets:
   count: 20
 localization:
   is_cooperative: true
-  is_predictive: false
+  is_predictive: true
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_0.csv
+  filename: sample_data_10.csv
   # filename: sample_data_yamamoto.csv
-  count: 50000
+  count: 500
 model:
   # filename: model_yamamoto.pkl
-  filename: model_0.pkl
+  filename: model_10.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_0.csv
+  filename: evaluation_data_10.csv
   # filename: evaluation_data_yamamoto.csv
-  count: 50000
-sim_cycles: 10000
+  count: 500
+sim_cycles: 100000

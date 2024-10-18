@@ -148,14 +148,14 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_estimated)):
 
           # 特徴量の計算
-          feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
+          feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
           feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors_available, distances_measured, target_estimated)
           feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
 
           features = np.array([
-            feature_avg_residual,
+            feature_residual_avg,
             feature_convex_hull_volume,
             feature_distance_from_center_of_field_to_target,
             feature_distance_from_centroid_of_sensors_to_vn_maximized,

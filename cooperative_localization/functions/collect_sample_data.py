@@ -14,12 +14,16 @@ from basis import line_of_position
 from basis import newton_raphson
 
 # 特徴量の算出
-from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_centroid_of_sensors_to_vn_maximized
-from feature import distance_from_center_of_field_to_target
 from feature import convex_hull_volume
-from feature import residual_avg
+from feature import distance_from_center_of_field_to_centroid_of_sn_available
+from feature import distance_from_center_of_field_to_tn_estimated
+from feature import distance_from_centroid_of_sn_available_to_tn_estimated
+from feature import distance_from_sn_available_to_approximate_line
+from feature import distance_from_vn_to_tn_estimated
 from feature import distance_error_squared
+from feature import hop_count_avg
+from feature import residual_avg
+
 
 # 結果算出
 from result import rmse_distribution
@@ -119,17 +123,17 @@ if __name__ == "__main__":
     # 平方根誤差のリスト
     squared_error_list = np.array([])
 
+    # 測距最大距離
+    distance_measured_max = 0.0
+
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
-        # sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([])
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-            # if not np.isinf(distance_measured):
-            #   sensors_available = np.append(sensors_available, [sensor], axis=0)
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
@@ -137,6 +141,10 @@ if __name__ == "__main__":
         if not is_localizable:
           continue
 
+        # 測距最大距離の更新
+        distance_measured_max = max(distance_measured_max, np.max(distances_measured))
+
+        # 測位可能なセンサ
         sensors_available = sensors[~np.isinf(distances_measured)]
         
         # 測位
@@ -148,18 +156,24 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_estimated)):
         
           # 特徴量の計算
-          feature_avg_residual = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-          feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors, distances_measured)
-          feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+          feature_distance_from_center_of_field_to_tn_estimated = distance_from_center_of_field_to_tn_estimated.calculate(field_range, target_estimated)
+          feature_distance_from_center_of_field_to_centroid_of_sn_available = distance_from_center_of_field_to_centroid_of_sn_available.calculate(field_range, sensors_available)
+          # feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
+          # feature_distance_from_vn_to_tn_estimated = distance_from_vn_to_tn_estimated.calculate(sensors, target_estimated, distances_measured, error_threshold)
+          feature_distance_from_sn_available_to_approximate_line = distance_from_sn_available_to_approximate_line.calculate(sensors_available)
+          feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
+          # feature_hop_count_avg = hop_count_avg.calculate(sensors_available)
 
           features = np.array([
-            feature_avg_residual,
             feature_convex_hull_volume,
-            feature_distance_from_center_of_field_to_target,
-            feature_distance_from_centroid_of_sensors_to_vn_maximized,
-            feature_distance_to_approximate_line,
+            feature_distance_from_center_of_field_to_tn_estimated,
+            feature_distance_from_center_of_field_to_centroid_of_sn_available,
+            # feature_distance_from_centroid_of_sn_available_to_tn_estimated,
+            # feature_distance_from_vn_to_tn_estimated,
+            feature_distance_from_sn_available_to_approximate_line,
+            feature_residual_avg,
+            # feature_hop_count_avg,
           ])
 
           # 平均平方根誤差の算出
@@ -218,12 +232,23 @@ if __name__ == "__main__":
 
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
+  # features_data = pd.DataFrame({
+  #   "avg_residual": features_list[:, 0],
+  #   "convex_hull_volume": features_list[:, 1], 
+  #   "distance_from_center_of_field_to_target": features_list[:, 2],
+  #   # "distance_from_centroid_of_sensors_to_vn_maximized": features_list[:, 3],
+  #   "distance_from_center_of_field_to_centroid_of_sn_available": features_list[:, 3],
+  #   "distance_to_approximate_line": features_list[:, 4],
+  #   "error": features_list[:, 5]
+  # })
   features_data = pd.DataFrame({
-    "avg_residual": features_list[:, 0],
-    "convex_hull_volume": features_list[:, 1], 
-    "distance_from_center_of_field_to_target": features_list[:, 2],
-    "distance_from_centroid_of_sensors_to_vn_maximized": features_list[:, 3],
-    "distance_to_approximate_line": features_list[:, 4],
+    "convex_hull_volume": features_list[:, 0],
+    "distance_from_center_of_field_to_tn_estimated": features_list[:, 1],
+    "distance_from_center_of_field_to_centroid_of_sn_available": features_list[:, 2],
+    # "distance_from_centroid_of_sn_available_to_tn_estimated": features_list[:, 3],
+    # "distance_from_vn_to_tn_estimated": features_list[:, 3],
+    "distance_from_sn_available_to_approximate_line": features_list[:, 3],
+    "residual_avg": features_list[:, 4],
     "error": features_list[:, 5]
   })
 

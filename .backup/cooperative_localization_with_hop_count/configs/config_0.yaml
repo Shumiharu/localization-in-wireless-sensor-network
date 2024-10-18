@@ -1,0 +1,56 @@
+field_range:
+  x_top: 30.0
+  x_bottom: 0.0
+  y_top: 30.0
+  y_bottom: 0.0
+  grid_interval: 0.1
+channel:
+  tx_power: 15.0
+  path_loss_at_the_reference_distance: 41.33
+  path_loss_exponent: 1.96
+  shadowing:
+    mean: 0.0
+    standard_deviation: (10**(0.1*2.73))
+  los:
+    mean: 0.0
+    standard_deviation: 0.6
+    probability: 1.0
+  nlos:
+    mean: 1.62
+    standard_deviation: 0.809
+    probability: 
+  receiver_sensitivity_threshold: -48.0
+  distance_error: -.inf
+anchors:
+  - x: 10.0
+    y: 10.0
+  - x: 20.0
+    y: 10.0
+  - x: 10.0
+    y: 20.0
+  - x: 20.0
+    y: 20.0
+targets: 
+  count: 20
+localization:
+  is_cooperative: true
+  is_predictive: false
+  max_loop: 7
+  max_distance_measurement: 1
+  newton_raphson:
+    max_loop: 10
+    threshold: 10**(-8)
+sample_data:
+  filename: sample_data_2.csv
+  # filename: sample_data_yamamoto.csv
+  count: 50000
+model:
+  # filename: model_yamamoto.pkl
+  filename: model_2.pkl
+  error_threshold: 2.0
+  cost_parameter_range: [0.1, 1.0, 10.0]
+evaluation_data:
+  filename: evaluation_data_2.csv
+  # filename: evaluation_data_yamamoto.csv
+  count: 50000
+sim_cycles: 10000

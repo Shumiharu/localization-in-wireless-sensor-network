@@ -35,8 +35,8 @@ if __name__ == "__main__":
   print(f"{model_filename} was loaded from {model_filepath}.")
 
   error_threshold = config["model"]["error_threshold"]
-  # labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)
-  labels = features_evaluation_list[:, -1]
+  labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)
+  # labels = features_evaluation_list[:, -1] # 山本先輩結果合わせのため
   predicted = model.predict(features_evaluation_list[:, :-1])
 
   print(f"accuracy_score: {accuracy_score(y_true=labels, y_pred=predicted)}")

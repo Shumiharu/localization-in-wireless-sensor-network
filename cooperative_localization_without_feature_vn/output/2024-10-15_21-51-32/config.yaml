@@ -1,0 +1,56 @@
+anchors:
+- x: 10.0
+  y: 10.0
+- x: 20.0
+  y: 10.0
+- x: 10.0
+  y: 20.0
+- x: 20.0
+  y: 20.0
+channel:
+  distance_error: -.inf
+  los:
+    mean: 0.0
+    probability: 1.0
+    standard_deviation: 0.6
+  nlos:
+    mean: 1.62
+    probability: null
+    standard_deviation: 0.809
+  path_loss_at_the_reference_distance: 41.33
+  path_loss_exponent: 1.96
+  receiver_sensitivity_threshold: -48.0
+  shadowing:
+    mean: 0.0
+    standard_deviation: (10**(0.1*2.73))
+  tx_power: 15.0
+evaluation_data:
+  count: 50000
+  filename: evaluation_data_0.csv
+field_range:
+  grid_interval: 0.1
+  x_bottom: 0.0
+  x_top: 30.0
+  y_bottom: 0.0
+  y_top: 30.0
+localization:
+  is_cooperative: true
+  is_predictive: true
+  max_distance_measurement: 1
+  max_loop: 7
+  newton_raphson:
+    max_loop: 10
+    threshold: 10**(-8)
+model:
+  cost_parameter_range:
+  - 0.1
+  - 1.0
+  - 10.0
+  error_threshold: 2.0
+  filename: model_0.pkl
+sample_data:
+  count: 50000
+  filename: sample_data_0.csv
+sim_cycles: 10000
+targets:
+  count: 20
