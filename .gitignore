@@ -25,6 +25,7 @@ cooperative_localization_without_feature_vn/output/**
 !cooperative_localization_without_feature_vn/output/**
 !cooperative_localization_without_feature_vn/output/**/.gitkeep
 
+cooperative_localization_with_hop_count
 
 fingerprinting/output/**
 !fingerprinting/output/**/
