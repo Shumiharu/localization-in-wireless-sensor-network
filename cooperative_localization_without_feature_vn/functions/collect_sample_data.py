@@ -124,16 +124,13 @@ if __name__ == "__main__":
 
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
-        # sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([])
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-            # if not np.isinf(distance_measured):
-            #   sensors_available = np.append(sensors_available, [sensor], axis=0)
-        
+
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
         is_localizable = len(distances_estimated) >= 3
@@ -155,18 +152,16 @@ if __name__ == "__main__":
         if not np.any(np.isnan(target_estimated)):
         
           # 特徴量の計算
-          feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          # feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors, distances_measured, distance_measured_max)
           feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+          feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
           features = np.array([
-            feature_residual_avg,
             feature_convex_hull_volume,
             feature_distance_from_center_of_field_to_target,
-            # feature_distance_from_centroid_of_sensors_to_vn_maximized,
             feature_distance_to_approximate_line,
+            feature_residual_avg,
           ])
 
           # 平均平方根誤差の算出
@@ -226,11 +221,10 @@ if __name__ == "__main__":
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
   features_data = pd.DataFrame({
-    "avg_residual": features_list[:, 0],
-    "convex_hull_volume": features_list[:, 1], 
-    "distance_from_center_of_field_to_target": features_list[:, 2],
-    # "distance_from_centroid_of_sensors_to_vn_maximized": features_list[:, 3],
-    "distance_to_approximate_line": features_list[:, 3],
+    "convex_hull_volume": features_list[:, 0], 
+    "distance_from_center_of_field_to_target": features_list[:, 1],
+    "distance_to_approximate_line": features_list[:, 2],
+    "residual_avg": features_list[:, 3],
     "error": features_list[:, 4]
   })
 

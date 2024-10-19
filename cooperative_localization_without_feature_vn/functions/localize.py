@@ -6,6 +6,7 @@ import yaml
 import joblib
 import pandas as pd
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # 基本関数
 from basis import distance_toa
@@ -93,6 +94,7 @@ if __name__ == "__main__":
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
+  # squared_error_lists = np.empty((0,20))
 
   # Make Folder and Save Config
   if is_subprocess:
@@ -122,21 +124,19 @@ if __name__ == "__main__":
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
+    # squared_error_list = np.array([np.nan]*targets_count)
 
     # 測距最大距離
-    distance_measured_max = 0.0
+    # distance_measured_max = 0.0
 
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
-        # sensors_available: np.ndarray = np.empty((0, 3))
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-            # if not np.isinf(distance_measured):
-            #   sensors_available = np.append(sensors_available, [sensor], axis=0)
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
@@ -145,7 +145,7 @@ if __name__ == "__main__":
           continue
 
         # 測距最大距離の更新
-        distance_measured_max = max(distance_measured_max, np.max(distances_measured))
+        # distance_measured_max = max(distance_measured_max, np.max(distances_measured))
         
         # 測位可能なセンサ
         sensors_available = sensors[~np.isinf(distances_measured)]
@@ -157,27 +157,37 @@ if __name__ == "__main__":
         target_estimated = np.append(target_estimated, 0) # 測位フラグの付加
         
         if not np.any(np.isnan(target_estimated)):
+          
+          if is_predictive:
+            # 特徴量の計算
+            feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
+            feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
+            feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+            feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
-          # 特徴量の計算
-          feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
-          feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-          feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          # feature_distance_from_centroid_of_sensors_to_vn_maximized = distance_from_centroid_of_sensors_to_vn_maximized.calculate(sensors, distances_measured, distance_measured_max)
-          feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+            features = np.array([
+              feature_convex_hull_volume,
+              feature_distance_from_center_of_field_to_target,
+              feature_distance_to_approximate_line,
+              feature_residual_avg,
+            ])
 
-          features = np.array([
-            feature_residual_avg,
-            feature_convex_hull_volume,
-            feature_distance_from_center_of_field_to_target,
-            # feature_distance_from_centroid_of_sensors_to_vn_maximized,
-            feature_distance_to_approximate_line
-          ])
+            if model.predict([features]) and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):
+              plt.scatter(sensors_available[:, 0], sensors_available[:, 1], c="black")
+              plt.scatter(target[0], target[1], c="blue")
+              plt.scatter(target_estimated[0], target_estimated[1], c="red")
+              plt.show()
+              plt.clf()
+              
 
           # SVMによる判定
+
           if not is_predictive or (is_predictive and not model.predict([features])):
             # 平均平方根誤差の算出
             squared_error = distance_error_squared.calculate(target, target_estimated)
             squared_error_list = np.append(squared_error_list, squared_error)
+            # order_localized = len(targets_localized) - 1
+            # squared_error_list[order_localized] = squared_error
 
             # 測位フラグの更新
             target[2], target_estimated[2] = 1, 1
@@ -194,6 +204,7 @@ if __name__ == "__main__":
     
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
+    # squared_error_total += np.nansum(squared_error_list)
     targets_localized_count_total += len(targets_localized)
     mean_squared_error = squared_error_total/targets_localized_count_total
     root_mean_squared_error = np.sqrt(mean_squared_error)
@@ -209,6 +220,9 @@ if __name__ == "__main__":
     
     # RMSEの分布を更新（協調測位の場合はRMSEの値が大きく振れるのであまり意味がないかも）
     # field_rmse_distribution = rmse_distribution.update(field_rmse_distribution, grid_interval, targets_localized, squared_error_list)
+
+    # 測位順と測位誤差のリスト
+    # squared_error_lists = np.append(squared_error_lists, np.array([squared_error_list]), axis=0)
 
     # 測位可能確率の分布の更新とその平均の算出
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
@@ -254,6 +268,19 @@ if __name__ == "__main__":
   field_localizable_probability_distribution_filepath = os.path.join(output_dirpath, field_localizable_probability_distribution_filename)
   field_localizable_probability_distribution_data.to_csv(field_localizable_probability_distribution_filepath, index=False)
   print(f"{field_localizable_probability_distribution_filename} was saved in {field_localizable_probability_distribution_filepath}.")
+
+  # 測位順ごとにRMSEを算出
+  # targets_order = np.arange(1, targets_count + 1)
+  # order_to_root_mean_squared_error = np.sqrt(np.nanmean(squared_error_lists, axis=0))
+  # order_to_root_mean_squared_error_data = pd.DataFrame({
+  #   "localization_order": targets_order,
+  #   "RMSE": order_to_root_mean_squared_error
+  # })
+  # order_to_root_mean_squared_error_filename = "order_to_root_mean_squared_error.csv"
+  # order_to_root_mean_squared_error_filepath = os.path.join(output_dirpath, order_to_root_mean_squared_error_filename)
+  # order_to_root_mean_squared_error_data.to_csv(order_to_root_mean_squared_error_filepath, index=False)
+  # print(f"{order_to_root_mean_squared_error_filename} was saved in {order_to_root_mean_squared_error_filepath}.")
+
 
 # メモ
 # ホップした数の平均をとってそのRMSEを算出
