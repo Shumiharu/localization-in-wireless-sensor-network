@@ -22,7 +22,7 @@ cooperative_localization/evaluation_data/**
 !cooperative_localization/evaluation_data/**/.gitkeep
 
 cooperative_localization_without_feature_vn/output/**
-!cooperative_localization_without_feature_vn/output/**
+!cooperative_localization_without_feature_vn/output/**/
 !cooperative_localization_without_feature_vn/output/**/.gitkeep
 
 cooperative_localization_with_hop_count
