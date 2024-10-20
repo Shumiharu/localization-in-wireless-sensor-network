@@ -16,8 +16,8 @@ from basis import newton_raphson
 
 # 特徴量の算出
 from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_centroid_of_sensors_to_vn_maximized
 from feature import distance_from_center_of_field_to_target
+from feature import distance_from_centroid_of_sn_available_to_tn_estimated
 from feature import convex_hull_volume
 from feature import residual_avg
 from feature import distance_error_squared
@@ -162,22 +162,17 @@ if __name__ == "__main__":
               # 特徴量の計算
               feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
               feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-              feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+              feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
+              feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
               feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
               features = np.array([
                 feature_convex_hull_volume,
                 feature_distance_from_center_of_field_to_target,
-                feature_distance_to_approximate_line,
+                feature_distance_from_centroid_of_sn_available_to_tn_estimated,
+                feature_distance_from_sensors_to_approximate_line,
                 feature_residual_avg,
-              ])
-
-              # if model.predict([features]) and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):
-              #   plt.scatter(sensors_available[:, 0], sensors_available[:, 1], c="black")
-              #   plt.scatter(target[0], target[1], c="blue")
-              #   plt.scatter(target_estimated[0], target_estimated[1], c="red")
-              #   plt.show()
-              #   plt.clf()
+              ]) 
 
             if not is_predictive or not model.predict([features]):
               
@@ -221,13 +216,13 @@ if __name__ == "__main__":
         continue
       break
     
-    if len(targets_localized) < targets_count:
-      targets_not_localized = targets[targets[:, 2] == 0]
-      plt.scatter(sensors[:, 0], sensors[:, 1], c="black")
-      plt.scatter(sensors[:, 0], sensors[:, 1], c="blue")
-      plt.scatter(targets_not_localized[:, 0], targets_not_localized[:, 1], c="red")
-      plt.show()
-      plt.clf()
+    # if len(targets_localized) < targets_count:
+    #   targets_not_localized = targets[targets[:, 2] == 0]
+    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="black")
+    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="blue")
+    #   plt.scatter(targets_not_localized[:, 0], targets_not_localized[:, 1], c="red")
+    #   plt.show()
+    #   plt.clf()
 
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)

@@ -14,10 +14,10 @@ from basis import line_of_position
 from basis import newton_raphson
 
 # 特徴量の算出
-from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_centroid_of_sensors_to_vn_maximized
-from feature import distance_from_center_of_field_to_target
 from feature import convex_hull_volume
+from feature import distance_from_sensors_to_approximate_line
+from feature import distance_from_center_of_field_to_target
+from feature import distance_from_centroid_of_sn_available_to_tn_estimated
 from feature import residual_avg
 from feature import distance_error_squared
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
   newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
 
   # Feature 
-  features_list = np.empty((0, 5))
+  features_list = np.empty((0, 6))
 
   # Sample
   sample_data_count = config["sample_data"]["count"]
@@ -154,13 +154,15 @@ if __name__ == "__main__":
           # 特徴量の計算
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          feature_distance_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
+          feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
+          feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
           feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
           features = np.array([
             feature_convex_hull_volume,
             feature_distance_from_center_of_field_to_target,
-            feature_distance_to_approximate_line,
+            feature_distance_from_centroid_of_sn_available_to_tn_estimated,
+            feature_distance_from_sensors_to_approximate_line,
             feature_residual_avg,
           ])
 
@@ -223,9 +225,10 @@ if __name__ == "__main__":
   features_data = pd.DataFrame({
     "convex_hull_volume": features_list[:, 0], 
     "distance_from_center_of_field_to_target": features_list[:, 1],
-    "distance_to_approximate_line": features_list[:, 2],
-    "residual_avg": features_list[:, 3],
-    "error": features_list[:, 4]
+    "distance_from_centroid_of_sn_available_to_tn_estimated": features_list[:, 2],
+    "distance_from_sensors_to_approximate_line": features_list[:, 3],
+    "residual_avg": features_list[:, 4],
+    "error": features_list[:, 5]
   })
 
   features_data.to_csv(sample_data_filepath, index=False)
