@@ -35,6 +35,7 @@ targets:
 localization:
   is_cooperative: true
   is_predictive: true
+  is_recursive: true
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
