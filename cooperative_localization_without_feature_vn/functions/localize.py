@@ -6,6 +6,8 @@ import yaml
 import joblib
 import pandas as pd
 from datetime import datetime
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 # 基本関数
@@ -73,13 +75,13 @@ if __name__ == "__main__":
   print(f"field: {width} x {height}")
 
   # Anchors & Targets Config
-  anchors = config["anchors"]
+  anchors_config = config["anchors"]
   print("anchor: (x, y) = ", end="")
-  for anchor in anchors:
-    anchor_x = anchor["x"]
-    anchor_y = anchor["y"]
+  for anchor_config in anchors_config:
+    anchor_x = anchor_config["x"]
+    anchor_y = anchor_config["y"]
     print(f"({anchor_x}, {anchor_y})", end=" ")
-  print(f"\n=> anchor count: {len(anchors)}")
+  print(f"\n=> anchor count: {len(anchors_config)}")
 
   targets_count: int = config["targets"]["count"]
   print("target: (x, y) = random")
@@ -119,7 +121,8 @@ if __name__ == "__main__":
   # シミュレーション開始
   for sim_cycle in range(sim_cycles):
     # sensor は anchor と reference で構成
-    sensors_original: np.ndarray = np.array([[anchor["x"], anchor["y"], 1] for anchor in anchors]) # 実際の座標
+    anchors = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config])
+    sensors_original = np.copy(anchors) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
@@ -131,8 +134,8 @@ if __name__ == "__main__":
 
     # 測距最大距離
     # distance_measured_max = 0.0
-    recursive_count = 0
-    for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
+    
+    for localization_loop in range(max_localization_loop):
       for target in targets:
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
@@ -142,11 +145,18 @@ if __name__ == "__main__":
             distances_measured = np.append(distances_measured, distance_measured)
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
-        mask_distance_unmeasurable = ~np.isinf(distances_measured)
-        distances_estimated = distances_measured[mask_distance_unmeasurable]
-        sensors_available = sensors[mask_distance_unmeasurable]
+        mask_distance_measurable = ~np.isinf(distances_measured)
+        distances_estimated = distances_measured[mask_distance_measurable]
+        sensors_available = sensors[mask_distance_measurable]
+        sensors_available_initial = np.copy(sensors_available)
+
+        # in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
+        # references_available = sensors_available[~in_anchors]
 
         is_initial_judge = True
+        target_estimated_mean = np.zeros(len(target))
+        recursive_count = 0
+
         while len(distances_estimated) >= 3:
 
           # 測位
@@ -162,14 +172,14 @@ if __name__ == "__main__":
               # 特徴量の計算
               feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
               feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-              feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
+              # feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
               feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
               feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
               features = np.array([
                 feature_convex_hull_volume,
                 feature_distance_from_center_of_field_to_target,
-                feature_distance_from_centroid_of_sn_available_to_tn_estimated,
+                # feature_distance_from_centroid_of_sn_available_to_tn_estimated,
                 feature_distance_from_sensors_to_approximate_line,
                 feature_residual_avg,
               ]) 
@@ -195,17 +205,47 @@ if __name__ == "__main__":
             else:
               if is_recursive:
                 if is_initial_judge or np.linalg.norm(target_estimated[:2] - target_estimated_previous[:2]) < error_threshold:
-                  mask_distances_estimated_max = np.argmax(distances_estimated)
-                  distances_estimated = np.delete(distances_estimated, mask_distances_estimated_max)
-                  sensors_available = np.delete(sensors_available, mask_distances_estimated_max, axis=0)
-                  target_estimated_previous = target_estimated
-                  is_initial_judge = False
-                  recursive_count += 1
+                  # not_in_anchors = np.array([not any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
+                  in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
+                  
+                  if np.all(in_anchors) and recursive_count == recursive_count_max: # ここのif文をis_initial_judgeにすると測位確率は99.99%になるが測位精度が大きく劣化
+
+                    # 平均平方根誤差の算出
+                    squared_error = distance_error_squared.calculate(target, target_estimated_mean)
+                    squared_error_list = np.append(squared_error_list, squared_error)
+
+                    # 測位フラグの更新
+                    target[2], target_estimated_mean[2] = 1, 1
+
+                    # 協調測位の場合はReference Nodeとしてセンサを追加する
+                    if is_cooperative_localization:
+                      sensors_original = np.append(sensors_original, [target], axis=0)
+                      sensors = np.append(sensors, [target_estimated_mean], axis=0)
+
+                    break
+
+                  if not np.all(in_anchors):
+                    if is_initial_judge:
+                      is_initial_judge = False
+                      recursive_count_max = len(sensors_available[~in_anchors])
+
+                    mask_rn = np.where(~in_anchors)[0]
+                    distances_estimated_from_rn = distances_estimated[mask_rn]
+                    mask_rn_max = mask_rn[np.argmax(distances_estimated_from_rn)]
+
+                    distances_estimated = np.delete(distances_estimated, mask_rn_max)
+                    sensors_available = np.delete(sensors_available, mask_rn_max, axis=0)
+
+                    target_estimated_previous = target_estimated
+                    target_estimated_mean = (target_estimated_mean*recursive_count + target_estimated)/(recursive_count + 1)
+
+                    recursive_count += 1
+                  else:
+                    break
                 else:
                   break
               else:
                 break
-          
           else:
             break
 
@@ -216,14 +256,20 @@ if __name__ == "__main__":
         continue
       break
     
-    # if len(targets_localized) < targets_count:
-    #   targets_not_localized = targets[targets[:, 2] == 0]
-    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="black")
-    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="blue")
-    #   plt.scatter(targets_not_localized[:, 0], targets_not_localized[:, 1], c="red")
-    #   plt.show()
-    #   plt.clf()
 
+    # targets_not_localized = targets[targets[:, 2] == 0]
+    # if len(targets_not_localized) > 0 and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):
+    #   print(f"再帰回数: {recursive_count}")
+    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+    #   plt.scatter(sensors_available_initial[:, 0], sensors_available_initial[:, 1], c="black")
+    #   plt.scatter(sensors_available[:, 0], sensors_available[:, 1], c="green")
+    #   plt.scatter(target_estimated_previous[0], target_estimated_previous[1], c="orange")
+    #   plt.scatter(targets_not_localized[:, 0], targets_not_localized[:, 1], c="blue")
+    #   plt.scatter(target[0], target[1], c="red")
+    #   plt.show()
+    #   plt.close('all')
+    #   plt.clf()
+    
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
     # squared_error_total += np.nansum(squared_error_list)
