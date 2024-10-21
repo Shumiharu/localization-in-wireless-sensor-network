@@ -19,7 +19,6 @@ from basis import newton_raphson
 # 特徴量の算出
 from feature import distance_from_sensors_to_approximate_line
 from feature import distance_from_center_of_field_to_target
-from feature import distance_from_centroid_of_sn_available_to_tn_estimated
 from feature import convex_hull_volume
 from feature import residual_avg
 from feature import distance_error_squared
@@ -132,9 +131,6 @@ if __name__ == "__main__":
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
 
-    # 測距最大距離
-    # distance_measured_max = 0.0
-    
     for localization_loop in range(max_localization_loop):
       for target in targets:
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
@@ -149,9 +145,6 @@ if __name__ == "__main__":
         distances_estimated = distances_measured[mask_distance_measurable]
         sensors_available = sensors[mask_distance_measurable]
         sensors_available_initial = np.copy(sensors_available)
-
-        # in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
-        # references_available = sensors_available[~in_anchors]
 
         is_initial_judge = True
         target_estimated_mean = np.zeros(len(target))
@@ -172,14 +165,12 @@ if __name__ == "__main__":
               # 特徴量の計算
               feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
               feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-              # feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
               feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
               feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
               features = np.array([
                 feature_convex_hull_volume,
                 feature_distance_from_center_of_field_to_target,
-                # feature_distance_from_centroid_of_sn_available_to_tn_estimated,
                 feature_distance_from_sensors_to_approximate_line,
                 feature_residual_avg,
               ]) 
@@ -205,7 +196,6 @@ if __name__ == "__main__":
             else:
               if is_recursive:
                 if is_initial_judge or np.linalg.norm(target_estimated[:2] - target_estimated_previous[:2]) < error_threshold:
-                  # not_in_anchors = np.array([not any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
                   in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
                   
                   if np.all(in_anchors) and recursive_count == recursive_count_max: # ここのif文をis_initial_judgeにすると測位確率は99.99%になるが測位精度が大きく劣化
