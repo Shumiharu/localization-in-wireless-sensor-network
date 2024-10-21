@@ -15,14 +15,11 @@ from basis import newton_raphson
 
 # 特徴量の算出
 from feature import convex_hull_volume
-from feature import distance_from_center_of_field_to_centroid_of_sn_available
-from feature import distance_from_center_of_field_to_tn_estimated
+from feature import distance_from_sensors_to_approximate_line
+from feature import distance_from_center_of_field_to_target
 from feature import distance_from_centroid_of_sn_available_to_tn_estimated
-from feature import distance_from_sn_available_to_approximate_line
-from feature import distance_from_vn_to_tn_estimated
-from feature import distance_error_squared
-from feature import hop_count_avg
 from feature import residual_avg
+from feature import distance_error_squared
 
 # 結果算出
 from result import rmse_distribution
@@ -62,13 +59,13 @@ if __name__ == "__main__":
   print(f"field: {width} x {height}")
 
   # Anchors & Targets Config
-  anchors = config["anchors"]
+  anchors_config = config["anchors"]
   print("anchor: (x, y) = ", end="")
-  for anchor in anchors:
-    anchor_x = anchor["x"]
-    anchor_y = anchor["y"]
+  for anchor_config in anchors_config:
+    anchor_x = anchor_config["x"]
+    anchor_y = anchor_config["y"]
     print(f"({anchor_x}, {anchor_y})", end=" ")
-  print(f"\n=> anchor count: {len(anchors)}")
+  print(f"\n=> anchor count: {len(anchors_config)}")
 
   targets_count: int = config["targets"]["count"]
   print("target: (x, y) = random")
@@ -82,7 +79,7 @@ if __name__ == "__main__":
   newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
 
   # Feature 
-  features_list = np.empty((0, 6))
+  features_list = np.empty((0, 5))
 
   # Evaluation
   evaluation_count = config["evaluation_data"]["count"]
@@ -104,7 +101,7 @@ if __name__ == "__main__":
   # シミュレーション開始
   while np.sum(features_list[:, -1] < error_threshold) < evaluation_count or np.sum(features_list[:, -1] >= error_threshold) < evaluation_count:
     # sensor は anchor node と reference node で構成
-    sensors_original: np.ndarray = np.array([[anchor["x"], anchor["y"], 1] for anchor in anchors]) # 実際の座標
+    sensors_original: np.ndarray = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config]) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
@@ -114,7 +111,7 @@ if __name__ == "__main__":
     squared_error_list = np.array([])
     
     # 測距最大距離
-    # distance_measured_max = 0.0
+    distance_measured_max = 0.0
 
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
@@ -124,12 +121,15 @@ if __name__ == "__main__":
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
             distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
-        
+
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         distances_estimated = distances_measured[~np.isinf(distances_measured)]
         is_localizable = len(distances_estimated) >= 3
         if not is_localizable:
           continue
+        
+        # 測距最大距離の更新
+        distance_measured_max = max(distance_measured_max, np.max(distances_measured))
 
         # 測位可能なセンサ
         sensors_available = sensors[~np.isinf(distances_measured)]
@@ -144,23 +144,17 @@ if __name__ == "__main__":
         
           # 特徴量の計算
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-          feature_distance_from_center_of_field_to_tn_estimated = distance_from_center_of_field_to_tn_estimated.calculate(field_range, target_estimated)
-          feature_distance_from_center_of_field_to_centroid_of_sn_available = distance_from_center_of_field_to_centroid_of_sn_available.calculate(field_range, sensors_available)
+          feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
           # feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
-          # feature_distance_from_vn_to_tn_estimated = distance_from_vn_to_tn_estimated.calculate(sensors, target_estimated, distances_measured, error_threshold)
-          feature_distance_from_sn_available_to_approximate_line = distance_from_sn_available_to_approximate_line.calculate(sensors_available)
+          feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
           feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
-          # feature_hop_count_avg = hop_count_avg.calculate(sensors_available)
 
           features = np.array([
             feature_convex_hull_volume,
-            feature_distance_from_center_of_field_to_tn_estimated,
-            feature_distance_from_center_of_field_to_centroid_of_sn_available,
+            feature_distance_from_center_of_field_to_target,
             # feature_distance_from_centroid_of_sn_available_to_tn_estimated,
-            # feature_distance_from_vn_to_tn_estimated,
-            feature_distance_from_sn_available_to_approximate_line,
+            feature_distance_from_sensors_to_approximate_line,
             feature_residual_avg,
-            # feature_hop_count_avg,
           ])
 
           # 平均平方根誤差の算出
@@ -219,24 +213,13 @@ if __name__ == "__main__":
 
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
-  # features_data = pd.DataFrame({
-  #   "avg_residual": features_list[:, 0],
-  #   "convex_hull_volume": features_list[:, 1], 
-  #   "distance_from_center_of_field_to_tn_estimated": features_list[:, 2],
-  #   # "distance_from_centroid_of_sensors_to_vn_maximized": features_list[:, 3],
-  #   "distance_from_center_of_field_to_centroid_of_sn_available": features_list[:, 3],
-  #   "distance_from_sn_available_to_approximate_line": features_list[:, 4],
-  #   "error": features_list[:, 5]
-  # })
   features_data = pd.DataFrame({
-    "convex_hull_volume": features_list[:, 0],
-    "distance_from_center_of_field_to_tn_estimated": features_list[:, 1],
-    "distance_from_center_of_field_to_centroid_of_sn_available": features_list[:, 2],
-    # "distance_from_centroid_of_sn_available_to_tn_estimated": features_list[:, 3],
-    # "distance_from_vn_to_tn_estimated": features_list[:, 3],
-    "distance_from_sn_available_to_approximate_line": features_list[:, 3],
-    "residual_avg": features_list[:, 4],
-    "error": features_list[:, 5]
+    "convex_hull_volume": features_list[:, 0], 
+    "distance_from_center_of_field_to_target": features_list[:, 1],
+    # "distance_from_centroid_of_sn_available_to_tn_estimated": features_list[:, 2],
+    "distance_from_sensors_to_approximate_line": features_list[:, 2],
+    "residual_avg": features_list[:, 3],
+    "error": features_list[:, 4]
   })
 
   features_data.to_csv(evaluation_data_filepath, index=False)

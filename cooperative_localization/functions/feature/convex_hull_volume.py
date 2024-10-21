@@ -2,7 +2,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 def calculate(sensors: np.ndarray):
-    hull = ConvexHull(sensors[:, :2], qhull_options='QJ')
+    hull = ConvexHull(sensors[:, :2])
     return hull.volume
 
 # Example Usage
