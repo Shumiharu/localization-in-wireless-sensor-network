@@ -8,6 +8,8 @@ import joblib
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 
@@ -45,11 +47,23 @@ if __name__ == "__main__":
   explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_sample_list[:, :-1], labels, stratify=labels, random_state=0)
 
   # SVMのパイプラインを作成
-  pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))
+  #pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))
+
+  #ランダムフォレスト版
+  #pipe_line = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=0))
+
+  #lightgbm(勾配ブースティング木)版
+  pipe_line = make_pipeline(StandardScaler(), lgb.LGBMClassifier(random_state=0))
 
   # Cパラメータの設定
   cost_parameter_range = config["model"]["cost_parameter_range"]
-  cost_parameter_grid = [{"svc__C": cost_parameter_range, "svc__kernel": ["rbf"]}]
+  #cost_parameter_grid = [{"svc__C": cost_parameter_range, "svc__kernel": ["rbf"]}]
+
+  #ランダムフォレスト版
+  #cost_parameter_grid = [{'randomforestclassifier__n_estimators':[50,100,150],'randomforestclassifier__max_depth':[5,10,15]}]
+  
+  #lightgbm(勾配ブースティング木)版
+  cost_parameter_grid = [{'lgbmclassifier__n_estimators':[5,10,15],'lgbmclassifier__max_depth':[5,10,15] }]
 
   # グリッドサーチ
   grid_search = GridSearchCV(

@@ -9,6 +9,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import time
 
 # 基本関数
 from basis import distance_toa
@@ -115,7 +116,12 @@ if __name__ == "__main__":
       yaml.safe_dump(config, config_saved_file)
       print(f"{config_filename} was saved.")
   
+  
   print("", end="\n")
+
+  localize_time_ave_total = 0.0    
+  localize_time_list = np.array([])
+  sim_time_start = time.time()
 
   # シミュレーション開始
   for sim_cycle in range(sim_cycles):
@@ -130,8 +136,10 @@ if __name__ == "__main__":
     # 平方根誤差のリスト
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
-
-    for localization_loop in range(max_localization_loop):
+    
+    #測位開始時間
+    localize_time_start = time.time()
+    for localization_loop in range(max_localization_loop):  
       for target in targets:
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
@@ -246,6 +254,16 @@ if __name__ == "__main__":
         continue
       break
     
+    localize_time_end = time.time()
+    localize_time_length = localize_time_end - localize_time_start
+    #1測位の平均時間
+    localize_time_ave = localize_time_length/(localization_loop+1)
+
+    #１測位の平均時間の合計（最終的にシミュレーション回数で割る）
+    localize_time_ave_total += localize_time_ave
+
+    #記録をリストに格納
+    localize_time_list = np.append(localize_time_list,localize_time_ave)
 
     # targets_not_localized = targets[targets[:, 2] == 0]
     # if len(targets_not_localized) > 0 and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):
@@ -259,7 +277,7 @@ if __name__ == "__main__":
     #   plt.show()
     #   plt.close('all')
     #   plt.clf()
-    
+
     # シミュレーション全体におけるMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
     # squared_error_total += np.nansum(squared_error_list)
@@ -288,7 +306,18 @@ if __name__ == "__main__":
 
     print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="")
   print("\n")
+  sim_time_end = time.time()
+  sim_time_length = sim_time_end - sim_time_start
+  #シミュレーションの開始・終了で平均シミュレーション時間を計算
+  sim_time_ave = sim_time_length/sim_cycles
   
+  #1測位の平均時間の合計をsimulation回数で割ることでbreakした場合などに考慮？
+  sim_time_localize_ave = localize_time_ave_total/sim_cycles
+  
+  print(f"Average time by sim total = {sim_time_ave} s")
+  print("\n")
+  print(f"Average time by localize average = {sim_time_localize_ave} s")
+  print("\n")
   print(f"Average RMSE = {root_mean_squared_error_avg} m")
 
   # RMSEの累積分布関数を出力
