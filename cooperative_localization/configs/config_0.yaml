@@ -51,6 +51,7 @@ fingerprint:
   count: 10000
 model:
   # filename: model_yamamoto_2.pkl
+  type: svm # svm / rf / lgb / nn
   filename: model_1.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]

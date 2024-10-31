@@ -17,16 +17,9 @@ import matplotlib.pyplot as plt
 
 # 基本関数
 from basis import distance_toa
-from basis import normalization
-from basis import line_of_position
-from basis import newton_raphson
 from basis import target_coordinates
 
 # 特徴量の算出
-from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_center_of_field_to_target
-from feature import convex_hull_volume
-from feature import residual_avg
 from feature import distance_error_squared
 from feature import feature_extraction
 
@@ -229,8 +222,8 @@ if __name__ == "__main__":
       if len(targets_estimated_initial) > 0:
 
         # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))[:1]
-        # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
-        # mask_sorted = np.array([np.random.choice(len(mask_targets_estimated_initial))])
+        mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
+
         if is_successive:
           mask_sorted = np.array([0])
 
@@ -265,15 +258,14 @@ if __name__ == "__main__":
               recursive_count = 0
               while len(distances_estimated_for_target_estimated) >= 3:
 
-                in_anchors = np.array([any(np.all(sensor_available_for_target_estimated == anchors, axis=1)) for sensor_available_for_target_estimated in sensors_available_for_target_estimated])
-                if recursive_count == 0:
-                  recursive_count_max = len(sensors_available_for_target_estimated[~in_anchors])
-                  # print(f"\nrecursive count max: {recursive_count_max}")
+                in_anchors = np.array([any(np.all(np.isclose(sensor_available_for_target_estimated, anchors), axis=1)) for sensor_available_for_target_estimated in sensors_available_for_target_estimated])
                 
-                is_recursion_available = np.any(~in_anchors) and recursive_count < recursive_count_max
+                # is_recursion_available = np.any(~in_anchors) and recursive_count < recursive_count_max
+                is_recursion_available = len(distances_estimated_for_target_estimated) > 3 and len(distances_estimated_for_target_estimated[~in_anchors]) > 0
                 if not is_recursion_available:
                   break
-
+                
+                # RNのインデックスを取得
                 mask_references = np.where(~in_anchors)[0]
                 distances_estimated_for_target_estimated_from_references = distances_estimated_for_target_estimated[mask_references]
                 index_distances_estimated_for_target_estimated_from_references_max = mask_references[np.argmax(distances_estimated_for_target_estimated_from_references)]
@@ -281,34 +273,32 @@ if __name__ == "__main__":
                 distances_estimated_for_target_estimated = np.delete(distances_estimated_for_target_estimated, index_distances_estimated_for_target_estimated_from_references_max)
                 sensors_available_for_target_estimated = np.delete(sensors_available_for_target_estimated, index_distances_estimated_for_target_estimated_from_references_max, axis=0)
                 
-                if len(distances_estimated_for_target_estimated) >= 3:
+                target_estimated_recursively = target_coordinates.calculate(
+                  sensors_available_for_target_estimated,
+                  distances_estimated_for_target_estimated,
+                  newton_raphson_max_loop,
+                  newton_raphson_threshold,
+                  field_range
+                )
 
-                  target_estimated_recursively = target_coordinates.calculate(
-                    sensors_available_for_target_estimated,
-                    distances_estimated_for_target_estimated,
-                    newton_raphson_max_loop,
-                    newton_raphson_threshold,
-                    field_range
-                  )
+                features_recursively = feature_extraction.calculate(
+                  sensors_available_for_target_estimated,
+                  distances_estimated_for_target_estimated,
+                  target_estimated_recursively,
+                  field_range
+                )
 
-                  features_recursively = feature_extraction.calculate(
-                    sensors_available_for_target_estimated,
-                    distances_estimated_for_target_estimated,
-                    target_estimated_recursively,
-                    field_range
-                  )
-
-                  is_positive = model.predict([features_recursively])
-                  if not is_positive:
-                    target_estimated = target_estimated_recursively
-                    break
-
-                  if np.linalg.norm(target_estimated_recursively - target_estimated) < error_threshold:
-                    target_estimated = target_estimated_recursively
-                  else:
-                    break
-
-                recursive_count += 1
+                # 誤差が小さいとされる場合は終了
+                is_positive = model.predict([features_recursively])
+                if not is_positive:
+                  target_estimated = target_estimated_recursively
+                  break
+                
+                # 前回との測位誤差がerror_thresholdより大きい場合は終了
+                if np.linalg.norm(target_estimated_recursively - target_estimated) < error_threshold:
+                  target_estimated = target_estimated_recursively
+                else:
+                  break
 
           if not is_predictive or not is_positive:
 

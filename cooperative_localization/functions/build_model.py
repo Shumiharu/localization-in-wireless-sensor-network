@@ -5,6 +5,8 @@ import pandas as pd
 import yaml
 import joblib
 
+import lightgbm as lgb
+
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -36,6 +38,7 @@ if __name__ == "__main__":
   print(f"{sample_data_filename} was loaded.")
 
   # Model
+  model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
   model_filepath = "../models/" + model_filename
   error_threshold = config["model"]["error_threshold"]
