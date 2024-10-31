@@ -7,6 +7,10 @@ import joblib
 import pandas as pd
 from datetime import datetime
 
+# ランダムシードの設定
+random.seed(42)
+np.random.seed(42)
+
 # 基本関数
 from basis import distance_toa
 from basis import normalization
@@ -106,7 +110,8 @@ if __name__ == "__main__":
   # シミュレーション開始
   while np.sum(features_list[:, -1] < error_threshold) < sample_data_count or np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
     # sensor は anchor node と reference node で構成
-    sensors_original: np.ndarray = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config]) # 実際の座標
+    anchors = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config])
+    sensors_original: np.ndarray = np.copy(anchors) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
@@ -119,16 +124,14 @@ if __name__ == "__main__":
     # 平方根誤差のリスト
     squared_error_list = np.array([])
 
-    # 測距最大距離
-    distance_measured_max = 0.0
-
     for localization_loop in range(max_localization_loop): # unavailableの補完 本来はWhileですべてのTNが"is_localized": 1 になるようにするのがよいが計算時間短縮のため10回に設定してある（とはいってもほとんど測位されてました）
       for target in targets:
         distances_measured: np.ndarray = np.array([])
+        rss_list = np.zeros(len(anchors))
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
-            distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+            distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
 
         # 三辺測量の条件（LOPの初期解を導出できる条件）
@@ -136,9 +139,6 @@ if __name__ == "__main__":
         is_localizable = len(distances_estimated) >= 3
         if not is_localizable:
           continue
-
-        # 測距最大距離の更新
-        distance_measured_max = max(distance_measured_max, np.max(distances_measured))
 
         # 測位可能なセンサ
         sensors_available = sensors[~np.isinf(distances_measured)]
@@ -154,14 +154,12 @@ if __name__ == "__main__":
           # 特徴量の計算
           feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
           feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-          # feature_distance_from_centroid_of_sn_available_to_tn_estimated = distance_from_centroid_of_sn_available_to_tn_estimated.calculate(sensors_available, target_estimated)
           feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
           feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
 
           features = np.array([
             feature_convex_hull_volume,
             feature_distance_from_center_of_field_to_target,
-            # feature_distance_from_centroid_of_sn_available_to_tn_estimated,
             feature_distance_from_sensors_to_approximate_line,
             feature_residual_avg,
           ])
@@ -225,7 +223,6 @@ if __name__ == "__main__":
   features_data = pd.DataFrame({
     "convex_hull_volume": features_list[:, 0], 
     "distance_from_center_of_field_to_target": features_list[:, 1],
-    # "distance_from_centroid_of_sn_available_to_tn_estimated": features_list[:, 2],
     "distance_from_sensors_to_approximate_line": features_list[:, 2],
     "residual_avg": features_list[:, 3],
     "error": features_list[:, 4]

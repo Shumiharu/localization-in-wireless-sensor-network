@@ -1,6 +1,9 @@
 import math 
 import random
 
+# ランダムシードの設定
+# random.seed(42)
+
 def calculate(standard_deviation: float) -> float:
   u1: float = (random.uniform(0, 10**9)+1)/((10**9)+1) # 桁数が多いほど細かく定義できるよね
   u2: float = (random.uniform(0, 10**9)+1)/((10**9)+1)

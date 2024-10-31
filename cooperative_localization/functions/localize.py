@@ -11,6 +11,9 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import time
 
+random.seed(42)
+np.random.seed(42)
+
 # 基本関数
 from basis import distance_toa
 from basis import normalization
@@ -76,6 +79,8 @@ if __name__ == "__main__":
 
   # Anchors & Targets Config
   anchors_config = config["anchors"]
+  anchors = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config])
+  centroid_of_anchors = np.array([np.mean(anchors[:, 0]), np.mean(anchors[:, 1])])
   print("anchor: (x, y) = ", end="")
   for anchor_config in anchors_config:
     anchor_x = anchor_config["x"]
@@ -86,6 +91,15 @@ if __name__ == "__main__":
   targets_count: int = config["targets"]["count"]
   print("target: (x, y) = random")
   print(f"=> target count: {targets_count}", end="\n\n")
+
+  # Fingerprint Config
+  # fingerprint_filename = "fingerprint_0.csv"
+  # fingerprint_filepath = "../fingerprint/" + fingerprint_filename
+  # if is_subprocess:
+  #   fingerprint_filepath = os.path.join(args[1], "fingerprint.csv")
+  # fingerprint_data = pd.read_csv(fingerprint_filepath)
+  # fingerprint_list = fingerprint_data.to_numpy()
+  # print(f"{fingerprint_filename} was loaded from {fingerprint_filepath}")
 
   # Localization Config
   sim_cycles = config["sim_cycles"] # シミュレーション回数
@@ -126,27 +140,55 @@ if __name__ == "__main__":
   # シミュレーション開始
   for sim_cycle in range(sim_cycles):
     # sensor は anchor と reference で構成
-    anchors = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config])
     sensors_original = np.copy(anchors) # 実際の座標
     sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
     targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
+    np.random.shuffle(targets)
+    # targets = np.array([
+    #   [29.07, 6.51,  0.],
+    #   [26.  ,  1.51,  0.],
+    #   [24.27,  9.13,  0.  ],
+    #   [11.56,  9.25,  0.  ],
+    #   [22.2 ,  9.23,  0.  ],
+    #   [11.52,  9.6 ,  0.  ],
+    #   [15.9 , 11.12,  0.  ],
+    #   [ 2.94, 20.45,  0.  ],
+    #   [27.61, 23.74,  0.  ],
+    #   [29.58, 28.73,  0.  ],
+    #   [28.54, 16.64,  0.  ],
+    #   [26.18, 14.76,  0.  ],
+    #   [22.28,  5.84,  0.  ],
+    #   [4.95, 3.95, 0.  ],
+    #   [ 8.08, 27.02,  0.  ],
+    #   [15.63, 20.38,  0.  ],
+    #   [24.59, 28.69,  0.  ],
+    #   [ 2.4 , 22.39,  0.  ],
+    #   [15.75, 25.06,  0.  ],
+    #   [9.76, 7.18, 0.  ]
+    # ])
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
     
+<<<<<<< HEAD
     #測位開始時間
     localize_time_start = time.time()
     for localization_loop in range(max_localization_loop):  
+=======
+    for localization_loop in range(max_localization_loop):
+>>>>>>> b425ec29070c8f3c7551cb8e34bcb181e8aa2a59
       for target in targets:
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
             distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
-            distance_measured = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+            distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
             distances_measured = np.append(distances_measured, distance_measured)
+        else:
+          continue
         
         # 三辺測量の条件（LOPの初期解を導出できる条件）
         mask_distance_measurable = ~np.isinf(distances_measured)
@@ -193,6 +235,7 @@ if __name__ == "__main__":
 
               # 測位フラグの更新
               target[2], target_estimated[2] = 1, 1
+              # print(target_estimated)
 
               # 協調測位の場合はReference Nodeとしてセンサを追加する
               if is_cooperative_localization:
@@ -373,3 +416,52 @@ if __name__ == "__main__":
 # ホップした数の平均をとってそのRMSEを算出
 # もう少し関数化できる
 # collect_sample_dataやbuild_modelなどを関数化して同じconfigで一度に同時実行することも考えたが，サンプルデータやモデルのデータの容量などを考えると現行で問題ないと判断
+
+# anchor nodeによる測距
+# targets_estimated = np.empty((0,2))
+# distances_measured_list = np.empty((0, len(anchors)))
+# for target in targets:
+#   distances_measured = np.array([])
+#   rx_power_list = np.array([])
+#   for anchor in anchors:
+#     distance_accurate = np.linalg.norm(target[:2] - anchor[:2])
+#     distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+#     distances_measured = np.append(distances_measured, distance_measured)
+#     rx_power_list = np.append(rx_power_list, rx_power)
+#   print(fingerprint_list[:, 2:])
+#   print(rx_power_list)
+#   print(np.square(fingerprint_list[:, 2:] - rx_power_list))
+#   target_estimated = fingerprint_list[np.nanargmin(np.nansum(np.square(fingerprint_list[:, 2:] - rx_power_list), axis=1)), :2]
+#   targets_estimated = np.append(targets_estimated, [target_estimated], axis=0)
+#   distances_measured_list = np.append(distances_measured_list, [distances_measured], axis=0)
+# print(targets)
+# print(targets_estimated)
+# indices = np.argsort(np.linalg.norm(targets_estimated - centroid_of_anchors, axis=1))
+# targets = targets[indices]
+# distances_measured_list = distances_measured_list[indices]
+# for target in targets:
+#   a = np.linalg.norm(target[:2] - centroid_of_anchors)
+#   print(f"distance = {a}")
+
+    # targets = np.array([
+    #   [29.07, 6.51,  0.],
+    #   [26.  ,  1.51,  0.],
+    #   [24.27,  9.13,  0.  ],
+    #   [11.56,  9.25,  0.  ],
+    #   [22.2 ,  9.23,  0.  ],
+    #   [11.52,  9.6 ,  0.  ],
+    #   [15.9 , 11.12,  0.  ],
+    #   [ 2.94, 20.45,  0.  ],
+    #   [27.61, 23.74,  0.  ],
+    #   [29.58, 28.73,  0.  ],
+    #   [28.54, 16.64,  0.  ],
+    #   [26.18, 14.76,  0.  ],
+    #   [22.28,  5.84,  0.  ],
+    #   [4.95, 3.95, 0.  ],
+    #   [ 8.08, 27.02,  0.  ],
+    #   [15.63, 20.38,  0.  ],
+    #   [24.59, 28.69,  0.  ],
+    #   [ 2.4 , 22.39,  0.  ],
+    #   [15.75, 25.06,  0.  ],
+    #   [9.76, 7.18, 0.  ]
+    # ])
