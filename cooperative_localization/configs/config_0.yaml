@@ -33,9 +33,9 @@ anchors:
 targets: 
   count: 20
 localization:
-  is_successive: true # 逐次的に測位する（従来手法）
+  is_successive: false # 逐次的に測位する（従来手法）
   is_cooperative: true # 協調を行うか
-  is_predictive: true # モデルによる誤差予測
+  is_predictive: false # モデルによる誤差予測
   is_recursive: true # 再帰的に誤差予測を行う
   max_loop: 7
   max_distance_measurement: 1
@@ -51,6 +51,7 @@ fingerprint:
   count: 10000
 model:
   # filename: model_yamamoto_2.pkl
+  type: svm # svm / rf / lgb / nn
   filename: model_1.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
