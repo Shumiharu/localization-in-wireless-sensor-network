@@ -33,9 +33,10 @@ anchors:
 targets: 
   count: 20
 localization:
-  is_cooperative: true
-  is_predictive: true
-  is_recursive: true
+  is_successive: true # 逐次的に測位する（従来手法）
+  is_cooperative: true # 協調を行うか
+  is_predictive: true # モデルによる誤差予測
+  is_recursive: true # 再帰的に誤差予測を行う
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
@@ -45,6 +46,9 @@ sample_data:
   filename: sample_data_1.csv
   # filename: sample_data_yamamoto_2.csv
   count: 1000
+fingerprint:
+  filename: fingerprint_0.csv
+  count: 10000
 model:
   # filename: model_yamamoto_2.pkl
   filename: model_1.pkl
