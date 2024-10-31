@@ -173,13 +173,9 @@ if __name__ == "__main__":
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
     
-<<<<<<< HEAD
     #測位開始時間
     localize_time_start = time.time()
     for localization_loop in range(max_localization_loop):  
-=======
-    for localization_loop in range(max_localization_loop):
->>>>>>> b425ec29070c8f3c7551cb8e34bcb181e8aa2a59
       for target in targets:
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う

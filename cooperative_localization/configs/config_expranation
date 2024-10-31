@@ -33,10 +33,10 @@ anchors:
 targets: 
   count: 20
 localization:
-  is_successive: true 
-  is_cooperative: true 
-  is_predictive: true 
-  is_recursive: true 
+  is_successive: true # 逐次的に測位する（従来手法）
+  is_cooperative: true # 協調を行うか
+  is_predictive: true # モデルによる誤差予測
+  is_recursive: true # 再帰的に誤差予測を行う
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
