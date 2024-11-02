@@ -64,14 +64,16 @@ if __name__ == "__main__":
 
   # Learning Model
   if is_predictive:
-    error_threshold = config["model"]["error_threshold"]
     model_type = config["model"]["type"]
+    is_built_successively = config["model"]["is_built_successively"]
     model_filename = config["model"]["filename"]
-    model_subdirname = "successive" if is_successive else "collective"
+    model_subdirname = "successive" if is_built_successively else "collective" # 測位がcollectiveでもモデルはsuccessiveを選択できる
     model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
-    model = joblib.load(model_filepath)
+    model = joblib.load(model_filepath)    
     print("\nError 'Recursive' Prediction" if is_recursive else "\nError Prediction", end=" ")
     print(f"by Machine Learning (model: {model_type} -> filepath: {model_filepath})\n")
+
+    error_threshold = config["model"]["error_threshold"]
   else:
     print("\nNo Error Prediction\n")
 

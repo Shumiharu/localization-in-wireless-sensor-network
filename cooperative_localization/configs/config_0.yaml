@@ -51,8 +51,9 @@ fingerprint:
   filename: fingerprint_10.csv # デバッグは"fingerprint_dbg"を使う
   count: 50000
 model:
-  # filename: model_yamamoto_2.pkl
   type: svm # svm / rf / lgb / nn
+  # filename: model_yamamoto_2.pkl
+  is_built_successively: false # 逐次的に測位するものを使うか
   filename: model_10.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
