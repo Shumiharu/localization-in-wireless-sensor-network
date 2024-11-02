@@ -10,8 +10,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-random.seed(42)
-np.random.seed(42)
+# random.seed(42)
+# np.random.seed(42)
 
 # 基本関数
 from basis import distance_toa
@@ -55,11 +55,12 @@ if __name__ == "__main__":
   is_recursive = config["localization"]["is_recursive"]
   if is_predictive:
     error_threshold = config["model"]["error_threshold"]
+    model_type = config["model"]["type"]
     model_filename = config["model"]["filename"]
-    model_filepath = "../models/" + model_filename
+    model_filepath = f"../models/{model_type}/{model_filename}"
     model = joblib.load(model_filepath)
     print("Error 'Recursive' Prediction" if is_recursive else "Error Prediction", end=" ")
-    print(f"by Machine Learning (model: {model_filename})")
+    print(f"by Machine Learning (model: {model_type}/{model_filename})")
   else:
     print("No Error Prediction")
 
@@ -166,9 +167,10 @@ if __name__ == "__main__":
     # 平方根誤差のリスト
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
+    targets_unlocalized_count = np.zeros((len(targets)))
     
     for localization_loop in range(max_localization_loop):
-      for target in targets:
+      for index_target, target in enumerate(targets):
         distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
         if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
           for sensor_original, sensor in zip(sensors_original, sensors):
@@ -212,6 +214,7 @@ if __name__ == "__main__":
                 feature_distance_from_sensors_to_approximate_line,
                 feature_residual_avg,
               ]) 
+              # print(f"features: {features}")
 
             if not is_predictive or not model.predict([features]):
               
@@ -270,13 +273,19 @@ if __name__ == "__main__":
 
                     recursive_count += 1
                   else:
+                    targets_unlocalized_count[index_target] += 1
                     break
                 else:
+                  targets_unlocalized_count[index_target] += 1
                   break
               else:
+                targets_unlocalized_count[index_target] += 1
                 break
           else:
             break
+        if len(distances_estimated) < 3:
+          targets_unlocalized_count[index_target] += 1
+
 
         targets_localized = targets[targets[:, 2] == 1] # 推定座標ではないので注意
         if len(targets_localized) == targets_count:
@@ -284,7 +293,10 @@ if __name__ == "__main__":
       else:
         continue
       break
-    
+    # else:
+    #   if np.all(targets_unlocalized_count[np.where(targets[:, 2] == 0)[0]] == max_localization_loop):
+    #     print(f"\ntargets:\n {targets}")
+    #     print(f"unlocalized count:\n{targets_unlocalized_count}")
 
     # targets_not_localized = targets[targets[:, 2] == 0]
     # if len(targets_not_localized) > 0 and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):

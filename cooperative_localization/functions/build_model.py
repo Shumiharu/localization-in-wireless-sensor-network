@@ -39,7 +39,7 @@ if __name__ == "__main__":
   # Model
   model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
-  model_filepath = "../models/" + model_filename
+  model_filepath = f"../models/{model_type}/{model_filename}"
   error_threshold = config["model"]["error_threshold"]
 
   # 正解ラベル

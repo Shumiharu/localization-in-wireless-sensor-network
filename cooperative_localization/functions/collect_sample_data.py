@@ -8,8 +8,8 @@ import pandas as pd
 from datetime import datetime
 
 # ランダムシードの設定
-random.seed(42)
-np.random.seed(42)
+# random.seed(42)
+# np.random.seed(42)
 
 # 基本関数
 from basis import distance_toa

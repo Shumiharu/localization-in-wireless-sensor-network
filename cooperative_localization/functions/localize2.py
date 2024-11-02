@@ -40,13 +40,14 @@ if __name__ == "__main__":
     config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded from {config_filepath}\n")
+    print(f"\n{config_filename} was loaded from {config_filepath}\n")
 
   # Localization Config
   is_successive: bool = config["localization"]["is_successive"]
   is_cooperative: bool = config["localization"]["is_cooperative"]
   is_predictive: bool = config["localization"]["is_predictive"]
   is_recursive: bool = config["localization"]["is_recursive"]
+  is_sorted = config["localization"]["is_sorted"]
 
   max_localization_loop: int = config["localization"]["max_loop"] # 最大測位回数
   max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 最大測距回数（この回数が多いほど通信における再送回数が多くなる）
@@ -58,16 +59,20 @@ if __name__ == "__main__":
   print("with Cooperation" if is_cooperative else "without Cooperation", end=" ")
   print("Collectively" if not is_successive else "Successively (Conventional Algorithm)")
 
+  print("\nEstimated targets (variable: targets_estimated) are localized", end=" ")
+  print("in order from the center." if is_sorted else "in that order.")
+
   # Learning Model
   if is_predictive:
     error_threshold = config["model"]["error_threshold"]
+    model_type = config["model"]["type"]
     model_filename = config["model"]["filename"]
-    model_filepath = "../models/" + model_filename
+    model_filepath = f"../models/{model_type}/{model_filename}"
     model = joblib.load(model_filepath)
-    print("Error 'Recursive' Prediction" if is_recursive else "Error Prediction", end=" ")
-    print(f"by Machine Learning (model: {model_filename})\n")
+    print("\nError 'Recursive' Prediction" if is_recursive else "\nError Prediction", end=" ")
+    print(f"by Machine Learning (model: {model_type}/{model_filename})\n")
   else:
-    print("No Error Prediction\n")
+    print("\nNo Error Prediction\n")
 
   # Field Config
   field_range = config["field_range"]
@@ -116,7 +121,6 @@ if __name__ == "__main__":
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
-  is_successive = True
   # squared_error_lists = np.empty((0,20))
 
   # Make Folder and Save Config
@@ -147,6 +151,29 @@ if __name__ == "__main__":
     targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
     np.random.shuffle(targets)
 
+    # targets = np.array([
+    #   [29.07, 6.51,  0.],
+    #   [26.  ,  1.51,  0.],
+    #   [24.27,  9.13,  0.  ],
+    #   [11.56,  9.25,  0.  ],
+    #   [22.2 ,  9.23,  0.  ],
+    #   [11.52,  9.6 ,  0.  ],
+    #   [15.9 , 11.12,  0.  ],
+    #   [ 2.94, 20.45,  0.  ],
+    #   [27.61, 23.74,  0.  ],
+    #   [29.58, 28.73,  0.  ],
+    #   [28.54, 16.64,  0.  ],
+    #   [26.18, 14.76,  0.  ],
+    #   [22.28,  5.84,  0.  ],
+    #   [4.95, 3.95, 0.  ],
+    #   [ 8.08, 27.02,  0.  ],
+    #   [15.63, 20.38,  0.  ],
+    #   [24.59, 28.69,  0.  ],
+    #   [ 2.4 , 22.39,  0.  ],
+    #   [15.75, 25.06,  0.  ],
+    #   [9.76, 7.18, 0.  ]
+    # ])
+
     # 平方根誤差のリスト
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
@@ -154,7 +181,7 @@ if __name__ == "__main__":
     distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
     targets_unlocalized_count = np.zeros(len(targets))
-    index_targets_end = 0
+    index_targets_begin = 0
 
     # 測位開始時間を取得
     time_localization_start = time.time()
@@ -168,12 +195,12 @@ if __name__ == "__main__":
 
       # 測距フェーズ
       mask_targets_unlocalized_original = np.where(targets[:, 2] == 0)[0]
-      shift_targets_begin = np.argmax(mask_targets_unlocalized_original >= index_targets_end)
+      shift_targets_begin = np.argmax(mask_targets_unlocalized_original >= index_targets_begin)
       mask_targets_unlocalized = np.roll(mask_targets_unlocalized_original, -shift_targets_begin)
       mask_sensors_unmeasured = np.where(sensors[:, 2] == 0)[0]
 
       # print(f"mask_targets_unlocalized_original: {np.where(targets[:, 2] == 0)[0]}")
-      # print(f"index_targets_end: {index_targets_end}")
+      # print(f"index_targets_begin: {index_targets_begin}")
       # print(f"shift_targets_begin: {shift_targets_begin}")
       # print(f"mask_targets_unlocalized: {mask_targets_unlocalized}")
 
@@ -186,14 +213,16 @@ if __name__ == "__main__":
       ])
         
       # 測距フラグの更新
-      if not is_successive:
-        sensors[mask_sensors_unmeasured, 2] = 1
+      # if not is_successive:
+      #   sensors[mask_sensors_unmeasured, 2] = 1
 
       # 一時測位フェーズ
       targets_estimated_initial = np.empty((0, 2))
       mask_targets_estimated_initial = np.array([], dtype="int")
       distances_measured_list_transposed = distances_measured_list.T
       for index_targets_unlocalized, distances_measured_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_transposed[mask_targets_unlocalized]):
+        
+        # 最大測位回数を超えてなければ推定座標を算出
         if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
 
           mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_for_targets_unlocalized)
@@ -214,18 +243,23 @@ if __name__ == "__main__":
               mask_targets_estimated_initial = np.append(mask_targets_estimated_initial, index_targets_unlocalized)
               if is_successive:
                 break
+            # else:
+            #   targets_unlocalized_count[index_targets_unlocalized] += 1
 
           else:
+            # 一時測位できない場合は加算
             targets_unlocalized_count[index_targets_unlocalized] += 1
       
       # 座標決定フェーズ
       if len(targets_estimated_initial) > 0:
+        
+        # 測位した順番に座標を決定（デフォルト）
+        mask_sorted = np.arange(len(targets_estimated_initial))
 
-        # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))[:1]
-        mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
-
-        if is_successive:
-          mask_sorted = np.array([0])
+        if is_sorted:
+          # ANの中心に近い方から座標を順に決定
+          mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
+          # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))[:1]
 
         targets_estimated = targets_estimated_initial[mask_sorted]
         mask_targets_estimated = mask_targets_estimated_initial[mask_sorted]
@@ -240,6 +274,7 @@ if __name__ == "__main__":
 
           distances_estimated_for_target_estimated = distances_measured_for_target_estimated[mask_distance_measurable_for_target_estimated]
           sensors_available_for_target_estimated = sensors[:len(mask_distance_measurable_for_target_estimated)][mask_distance_measurable_for_target_estimated]
+          sensors_available_for_target_estimated_orignal = np.copy(sensors_available_for_target_estimated)
 
           if is_predictive:
             
@@ -250,23 +285,29 @@ if __name__ == "__main__":
               target_estimated,
               field_range
             )
+            # print(f"features: {features}")
 
             # 陽性判定
             is_positive = model.predict([features])
             if is_positive and is_recursive:
 
               recursive_count = 0
+              targets_estimated_recursively = np.array([target_estimated])
               while len(distances_estimated_for_target_estimated) >= 3:
 
                 in_anchors = np.array([any(np.all(np.isclose(sensor_available_for_target_estimated, anchors), axis=1)) for sensor_available_for_target_estimated in sensors_available_for_target_estimated])
-                
-                # is_recursion_available = np.any(~in_anchors) and recursive_count < recursive_count_max
-                is_recursion_available = len(distances_estimated_for_target_estimated) > 3 and len(distances_estimated_for_target_estimated[~in_anchors]) > 0
-                if not is_recursion_available:
-                  break
-                
                 # RNのインデックスを取得
                 mask_references = np.where(~in_anchors)[0]
+                if recursive_count == 0:
+                  recursive_count_max = np.sum(~in_anchors)
+
+                is_recursion_available = len(distances_estimated_for_target_estimated) > 3 and len(distances_estimated_for_target_estimated[~in_anchors]) > 0
+                if not is_recursion_available:
+                  if recursive_count == recursive_count_max > 0:
+                    is_positive = False
+                    target_estimated = np.mean(targets_estimated_recursively, axis=0)
+                  break
+                
                 distances_estimated_for_target_estimated_from_references = distances_estimated_for_target_estimated[mask_references]
                 index_distances_estimated_for_target_estimated_from_references_max = mask_references[np.argmax(distances_estimated_for_target_estimated_from_references)]
 
@@ -297,15 +338,18 @@ if __name__ == "__main__":
                 # 前回との測位誤差がerror_thresholdより大きい場合は終了
                 if np.linalg.norm(target_estimated_recursively - target_estimated) < error_threshold:
                   target_estimated = target_estimated_recursively
+                  targets_estimated_recursively = np.append(targets_estimated_recursively, [target_estimated_recursively], axis=0)
                 else:
                   break
+
+                recursive_count += 1
 
           if not is_predictive or not is_positive:
 
             # 推定座標の確定
             target_localized = np.append(target_estimated, 0)
             targets_localized = np.append(targets_localized, [target_localized], axis=0)
-            # print(f"target_localized[{index_targets_estimated_sorted}]: {target_localized}\n")
+            # print(f"target_localized[{index_targets_estimated}]: {target_localized}\n")
 
             # 二乗誤差の算出
             squared_error = distance_error_squared.calculate(target, target_localized)
@@ -318,17 +362,33 @@ if __name__ == "__main__":
 
             # 測位フラグの更新
             targets[index_targets_estimated, 2] = 1
+          
+          else:
+            targets_unlocalized_count[index_targets_estimated] += 1
         
         if is_successive:
-          index_targets_end = np.max(mask_targets_estimated)
+          index_targets_begin = np.max(mask_targets_estimated) + 1
 
-      else:
-        is_localizable = np.any(targets_unlocalized_count[mask_targets_unlocalized] != max_localization_loop)
+      is_localizable = np.any(targets_unlocalized_count[mask_targets_unlocalized] < max_localization_loop)
+      # if not is_localizable:
+        # print(f"\ntargets:\n {targets}")
+        # print(f"unlocalized count:\n{targets_unlocalized_count}")
 
-      # if len(targets[targets[:, 2] == 1]) == targets_count:
       if len(targets_localized) == targets_count:
         break
     
+    # targets_unlocalized = targets[targets[:, 2] == 0]
+    # if len(targets_unlocalized) > 0 and np.any(np.linalg.norm(targets_unlocalized[:2] - 15.0, axis=0) <= 2.0):
+    #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+    #   plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+    #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+    #   plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+    #   plt.scatter(target_estimated[0], target_estimated[1], c="blue")
+    #   plt.scatter(target[0], target[1], c="red")
+    #   plt.show()
+    #   plt.close('all')
+    #   plt.clf()
+
     # 測位時間の算出
     time_localization_end = time.time()
     duration_localization_per_target = (time_localization_end - time_localization_start)/len(targets_localized)
@@ -347,7 +407,7 @@ if __name__ == "__main__":
     # 求めたRMSEをリストに追加
     root_mean_squared_error_list = np.append(root_mean_squared_error_list, root_mean_squared_error)
 
-    # 平均のRMSEの算出
+    # RMSE（シミュレーション平均）の算出
     if sim_cycle == 0:
       root_mean_squared_error_avg = root_mean_squared_error
     else:
@@ -363,7 +423,15 @@ if __name__ == "__main__":
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
-    print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " / RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg) + " / Avg. Localization Duration per target: " + "{:.4f}".format(duration_localization_per_target_avg), end="")
+    print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " / RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg) + " / Avg. Localization Duration per target: " + "{:.6f}".format(duration_localization_per_target_avg), end="")
+    
+    if is_recursive:
+      if sim_cycle == 0:
+        recursive_count_avg = recursive_count
+      else:
+        recursive_count_avg = (recursive_count_avg*sim_cycle + recursive_count)/(sim_cycle + 1)
+      print(" / Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg), end="")
+
   print("\n")
   
   print(f"Average RMSE = {root_mean_squared_error_avg} m")

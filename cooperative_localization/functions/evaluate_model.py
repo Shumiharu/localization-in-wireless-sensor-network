@@ -29,10 +29,11 @@ if __name__ == "__main__":
   print(f"{evaluation_data_filename} was loaded from {evaluation_data_filepath}")
   
   # Load Model File
+  model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
-  model_filepath = "../models/" + model_filename
+  model_filepath = f"../models/{model_type}/{model_filename}"
   model = joblib.load(model_filepath)
-  print(f"{model_filename} was loaded from {model_filepath}.")
+  print(f"{model_filename} was loaded from {model_type}/{model_filepath}.")
 
   error_threshold = config["model"]["error_threshold"]
   labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)

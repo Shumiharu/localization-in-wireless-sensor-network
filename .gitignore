@@ -12,9 +12,21 @@ cooperative_localization/output/**
 !cooperative_localization/output/**/
 !cooperative_localization/output/**/.gitkeep
 
-cooperative_localization/models/**
-!cooperative_localization/models/**/
-!cooperative_localization/models/**/.gitkeep
+cooperative_localization/models/lgb/**
+!cooperative_localization/models/lgb/**/
+!cooperative_localization/models/lbg/**/.gitkeep
+
+cooperative_localization/models/nn/**
+!cooperative_localization/models/nn/**/
+!cooperative_localization/models/nn/**/.gitkeep
+
+cooperative_localization/models/rf/**
+!cooperative_localization/models/rf/**/
+!cooperative_localization/models/rf/**/.gitkeep
+
+cooperative_localization/models/svm/**
+!cooperative_localization/models/svm/**/
+!cooperative_localization/models/svm/**/.gitkeep
 
 cooperative_localization/sample_data/**
 !cooperative_localization/sample_data/**/

@@ -35,8 +35,9 @@ targets:
 localization:
   is_successive: false # 逐次的に測位する（従来手法）
   is_cooperative: true # 協調を行うか
-  is_predictive: false # モデルによる誤差予測
-  is_recursive: true # 再帰的に誤差予測を行う
+  is_predictive: true # モデルによる誤差予測
+  is_recursive: false # 再帰的に誤差予測を行う
+  is_sorted: true # 推定座標決定のための並びかえ
   max_loop: 7
   max_distance_measurement: 1
   newton_raphson:
@@ -59,4 +60,4 @@ evaluation_data:
   filename: evaluation_data_1.csv
   # filename: evaluation_data_yamamoto_2.csv
   count: 1000
-sim_cycles: 100000
+sim_cycles: 10000
