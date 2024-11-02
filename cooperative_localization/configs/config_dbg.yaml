@@ -36,7 +36,7 @@ localization:
   is_successive: false # 逐次的に測位する（従来手法）
   is_cooperative: true # 協調を行うか
   is_predictive: true # モデルによる誤差予測
-  is_recursive: false # 再帰的に誤差予測を行う
+  is_recursive: true # 再帰的に誤差予測を行う
   is_sorted: true # 推定座標決定のための並びかえ
   max_loop: 7
   max_distance_measurement: 1
@@ -44,20 +44,20 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_10.csv # デバッグは"sample_data_dbg"を使う
+  filename: sample_data_dbg.csv # デバッグは"sample_data_dbg"を使う
   # filename: sample_data_yamamoto_2.csv
-  count: 50000
+  count: 100
 fingerprint:
-  filename: fingerprint_10.csv # デバッグは"fingerprint_dbg"を使う
-  count: 50000
+  filename: fingerprint_dbg.csv # デバッグは"fingerprint_dbg"を使う
+  count: 100
 model:
   # filename: model_yamamoto_2.pkl
-  type: svm # svm / rf / lgb / nn
-  filename: model_10.pkl # デバッグは"model_dbg"を使う
+  type: nn # svm / rf / lgb / nn
+  filename: model_dbg.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_10.csv # デバッグは"evaluation_data_10"を使う
+  filename: evaluation_data_dbg.csv # デバッグは"evaluation_data_10"を使う
   # filename: evaluation_data_yamamoto_2.csv
-  count: 50000
-sim_cycles: 100000
+  count: 100
+sim_cycles: 1000

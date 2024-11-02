@@ -392,7 +392,7 @@ if __name__ == "__main__":
 
     # 測位時間の算出
     time_localization_end = time.time()
-    duration_localization_per_target = (time_localization_end - time_localization_start)/len(targets_localized)
+    duration_localization_per_target =  (time_localization_end - time_localization_start)/(len(targets_localized) or 1)
     if sim_cycle == 0:
       duration_localization_per_target_avg = duration_localization_per_target
     else:
