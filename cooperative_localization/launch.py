@@ -47,7 +47,7 @@ if __name__ == "__main__":
   if is_predictive:
     # 1. Collect Sample Data
     try:
-      command_collect_sample_data = f"cd functions && python collect_sample_data.py ../{output_dirpath}"
+      command_collect_sample_data = f"cd functions && python collect_sample_data2.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_collect_sample_data}')
       # process_collect_sample_data = subprocess.Popen(command_collect_sample_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
       process_collect_sample_data = subprocess.Popen(command_collect_sample_data, shell=True)
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # 2. Collect Evaluation Data
     try:
-      command_collect_evaluation_data = f"cd functions && python collect_evaluation_data.py ../{output_dirpath}"
+      command_collect_evaluation_data = f"cd functions && python collect_evaluation_data2.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_collect_evaluation_data}')
       # process_collect_evaluation_data = subprocess.Popen(command_collect_evaluation_data, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
       process_collect_evaluation_data = subprocess.Popen(command_collect_evaluation_data, shell=True)
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     # 3. Build Model
     try:
-      command_build_model = f"cd functions && python build_model.py ../{output_dirpath}"
+      command_build_model = f"cd functions && python build_model2.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_build_model}')
       process_build_model = subprocess.run(command_build_model, shell=True, check=True)
     except subprocess.CalledProcessError as e:
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     
     # 4. Evaluate Model
     try:
-      command_evaluate_model = f"cd functions && python evaluate_model.py ../{output_dirpath}"
+      command_evaluate_model = f"cd functions && python evaluate_model2.py ../{output_dirpath}"
       print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_evaluate_model}')
       subprocess.run(command_evaluate_model, shell=True, check=True)
     except subprocess.CalledProcessError as e:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
   
   # Localization
   try:
-    command_localize = f"cd functions && python localize.py ../{output_dirpath}"
+    command_localize = f"cd functions && python localize2.py ../{output_dirpath}"
     print('\033[36m' + f'{current_dirpath}' + '\033[0m' + f'$ {command_localize}')
     subprocess.run(command_localize, shell=True, check=True)
   except subprocess.CalledProcessError as e:

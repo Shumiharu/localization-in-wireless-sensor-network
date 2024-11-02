@@ -44,20 +44,20 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_0.csv
+  filename: sample_data_0.csv # デバッグは"sample_data_dbg"を使う
   # filename: sample_data_yamamoto_2.csv
-  count: 10000
+  count: 100
 fingerprint:
-  filename: fingerprint_0.csv
-  count: 10000
+  filename: fingerprint_dbg.csv # デバッグは"fingerprint_dbg"を使う
+  count: 100
 model:
   # filename: model_yamamoto_2.pkl
   type: nn # svm / rf / lgb / nn
-  filename: model_0.pkl
+  filename: model_dbg.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_0.csv
+  filename: evaluation_data_dbg.csv # デバッグは"evaluation_data_10"を使う
   # filename: evaluation_data_yamamoto_2.csv
-  count: 10000
-sim_cycles: 10000
+  count: 100
+sim_cycles: 1000

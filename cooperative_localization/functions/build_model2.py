@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
   # neural network
   if model_type == "nn":
-    pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0))
+    pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0, max_iter=500, early_stopping=True))
     cost_parameter_grid = [{"mlpclassifier__learning_rate_init":[0.01,0.005,0.001]}]
 
   # グリッドサーチ
