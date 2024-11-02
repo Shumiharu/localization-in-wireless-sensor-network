@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
   print("Localization: Least Square (LS) Method", end=" ")
   print("with Cooperation" if is_cooperative else "without Cooperation", end=" ")
-  print("Collectively" if not is_successive else "Successively (Conventional Algorithm)")
+  print("'Collectively'" if not is_successive else "'Successively (Conventional Algorithm)'")
 
   print("\nEstimated targets (variable: targets_estimated) are localized", end=" ")
   print("in order from the center." if is_sorted else "in that order.")
@@ -67,10 +67,11 @@ if __name__ == "__main__":
     error_threshold = config["model"]["error_threshold"]
     model_type = config["model"]["type"]
     model_filename = config["model"]["filename"]
-    model_filepath = f"../models/{model_type}/{model_filename}"
+    model_subdirname = "successive" if is_successive else "collective"
+    model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
     model = joblib.load(model_filepath)
     print("\nError 'Recursive' Prediction" if is_recursive else "\nError Prediction", end=" ")
-    print(f"by Machine Learning (model: {model_type}/{model_filename})\n")
+    print(f"by Machine Learning (model: {model_type} -> filepath: {model_filepath})\n")
   else:
     print("\nNo Error Prediction\n")
 
@@ -190,8 +191,8 @@ if __name__ == "__main__":
     while is_localizable:
 
       # 測距値のリセット
-      if is_successive:
-        distances_measured_list = np.empty((0, len(targets)))
+      # if is_successive:
+      #   distances_measured_list = np.empty((0, len(targets)))
 
       # 測距フェーズ
       mask_targets_unlocalized_original = np.where(targets[:, 2] == 0)[0]
@@ -434,7 +435,7 @@ if __name__ == "__main__":
 
   print("\n")
   
-  print(f"Average RMSE = {root_mean_squared_error_avg} m")
+  print(f"RMSE: {root_mean_squared_error_avg} m")
 
   # RMSEの累積分布関数を出力
   root_mean_squared_error_list_sorted = np.sort(root_mean_squared_error_list)
@@ -484,9 +485,7 @@ if __name__ == "__main__":
   # order_to_root_mean_squared_error_data.to_csv(order_to_root_mean_squared_error_filepath, index=False)
   # print(f"{order_to_root_mean_squared_error_filename} was saved in {order_to_root_mean_squared_error_filepath}.")
 
-
-# メモ
-# collect_sample_dataやbuild_modelなどを関数化して同じconfigで一度に同時実行することも考えたが，サンプルデータやモデルのデータの容量などを考えると現行で問題ないと判断
+  print("\ncomplete.")
 
 # anchor nodeによる測距
 # targets_estimated = np.empty((0,2))
@@ -513,182 +512,3 @@ if __name__ == "__main__":
 # for target in targets:
 #   a = np.linalg.norm(target[:2] - centroid_of_anchors)
 #   print(f"distance = {a}")
-
-
-
-    #   is_initial_judge = True
-    #   target_estimated_mean = np.zeros(len(target))
-    #   recursive_count = 0
-
-    #   while len(distances_estimated) >= 3:
-
-    #     # 測位
-    #     target_estimated = line_of_position.calculate(sensors_available, distances_estimated) # Line of Positionによる初期解の算出
-    #     target_estimated = newton_raphson.calculate(sensors_available, distances_estimated, target_estimated, newton_raphson_max_loop, newton_raphson_threshold) # Newton Raphson法による最適解の算出
-    #     target_estimated = normalization.calculate(field_range, target_estimated) # 測位フィールド外に測位した場合の補正
-    #     target_estimated = np.append(target_estimated, 0) # 測位フラグの付加
-        
-    #     if not np.any(np.isnan(target_estimated)):
-          
-    #       if is_predictive:
-
-    #         # 特徴量の計算
-            # feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-            # feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-            # feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
-            # feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
-
-            # features = np.array([
-            #   feature_convex_hull_volume,
-            #   feature_distance_from_center_of_field_to_target,
-            #   feature_distance_from_sensors_to_approximate_line,
-            #   feature_residual_avg,
-            # ]) 
-
-    #       if not is_predictive or not model.predict([features]):
-            
-    #         # 平均平方根誤差の算出
-    #         squared_error = distance_error_squared.calculate(target, target_estimated)
-    #         squared_error_list = np.append(squared_error_list, squared_error)
-    #         # order_localized = len(targets_localized) - 1
-    #         # squared_error_list[order_localized] = squared_error
-
-    #         # 測位フラグの更新
-    #         target[2], target_estimated[2] = 1, 1
-
-    #         # 協調測位の場合はReference Nodeとしてセンサを追加する
-    #         if is_cooperative:
-    #           sensors_original = np.append(sensors_original, [target], axis=0)
-    #           sensors = np.append(sensors, [target_estimated], axis=0)
-
-    #         break
-
-    #       else:
-    #         if is_recursive:
-    #           if is_initial_judge or np.linalg.norm(target_estimated[:2] - target_estimated_previous[:2]) < error_threshold:
-    #             in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
-                
-    #             if np.all(in_anchors) and recursive_count == recursive_count_max: # ここのif文をis_initial_judgeにすると測位確率は99.99%になるが測位精度が大きく劣化
-
-    #               # 平均平方根誤差の算出
-    #               squared_error = distance_error_squared.calculate(target, target_estimated_mean)
-    #               squared_error_list = np.append(squared_error_list, squared_error)
-
-    #               # 測位フラグの更新
-    #               target[2], target_estimated_mean[2] = 1, 1
-
-    #               # 協調測位の場合はReference Nodeとしてセンサを追加する
-    #               if is_cooperative:
-    #                 sensors_original = np.append(sensors_original, [target], axis=0)
-    #                 sensors = np.append(sensors, [target_estimated_mean], axis=0)
-
-    #               break
-
-    #             if not np.all(in_anchors):
-    #               if is_initial_judge:
-    #                 is_initial_judge = False
-    #                 recursive_count_max = len(sensors_available[~in_anchors])
-
-    #               mask_rn = np.where(~in_anchors)[0]
-    #               distances_estimated_from_rn = distances_estimated[mask_rn]
-    #               mask_rn_max = mask_rn[np.argmax(distances_estimated_from_rn)]
-
-    #               distances_estimated = np.delete(distances_estimated, mask_rn_max)
-    #               sensors_available = np.delete(sensors_available, mask_rn_max, axis=0)
-
-    #               target_estimated_previous = target_estimated
-    #               target_estimated_mean = (target_estimated_mean*recursive_count + target_estimated)/(recursive_count + 1)
-
-    #               recursive_count += 1
-    #             else:
-    #               break
-    #           else:
-    #             break
-    #         else:
-    #           break
-    #     else:
-    #       break
-
-    #   targets_localized = targets[targets[:, 2] == 1] # 推定座標ではないので注意
-    #   if len(targets_localized) == targets_count:
-    #     break
-    # else:
-    #   continue
-  # break
-
-      # targets = np.array([
-    #   [29.07, 6.51,  0.],
-    #   [26.  ,  1.51,  0.],
-    #   [24.27,  9.13,  1.  ],
-    #   [11.56,  9.25,  1.  ],
-    #   [22.2 ,  9.23,  1.  ],
-    #   [11.52,  9.6 ,  1.  ],
-    #   [15.9 , 11.12,  1.  ],
-    #   [ 2.94, 20.45,  1.  ],
-    #   [27.61, 23.74,  1.  ],
-    #   [29.58, 28.73,  0.  ],
-    #   [28.54, 16.64,  1.  ],
-    #   [26.18, 14.76,  1.  ],
-    #   [22.28,  5.84,  1.  ],
-    #   [4.95, 3.95, 1.  ],
-    #   [ 8.08, 27.02,  1.  ],
-    #   [15.63, 20.38,  1.  ],
-    #   [24.59, 28.69,  1.  ],
-    #   [ 2.4 , 22.39,  0.  ],
-    #   [15.75, 25.06,  1.  ],
-    #   [9.76, 7.18, 1.  ]
-    # ])
-    # targets = np.array([
-    #   [29.07, 6.51,  0.],
-    #   [26.  ,  1.51,  0.],
-    #   [24.27,  9.13,  0.  ],
-    #   [11.56,  9.25,  0.  ],
-    #   [22.2 ,  9.23,  0.  ],
-    #   [11.52,  9.6 ,  0.  ],
-    #   [15.9 , 11.12,  0.  ],
-    #   [ 2.94, 20.45,  0.  ],
-    #   [27.61, 23.74,  0.  ],
-    #   [29.58, 28.73,  0.  ],
-    #   [28.54, 16.64,  0.  ],
-    #   [26.18, 14.76,  0.  ],
-    #   [22.28,  5.84,  0.  ],
-    #   [4.95, 3.95, 0.  ],
-    #   [ 8.08, 27.02,  0.  ],
-    #   [15.63, 20.38,  0.  ],
-    #   [24.59, 28.69,  0.  ],
-    #   [ 2.4 , 22.39,  0.  ],
-    #   [15.75, 25.06,  0.  ],
-    #   [9.76, 7.18, 0.  ]
-    # ])
-    
-       # targets = np.array([
-    #   [29.07, 6.51,  0.],
-    #   [26.  ,  1.51,  0.],
-    #   [24.27,  9.13,  0.  ],
-    #   [11.56,  9.25,  0.  ],
-    #   [22.2 ,  9.23,  0.  ],
-    #   [11.52,  9.6 ,  0.  ],
-    #   [15.9 , 11.12,  0.  ],
-    #   [ 2.94, 20.45,  0.  ],
-    #   [27.61, 23.74,  0.  ],
-    #   [29.58, 28.73,  0.  ],
-    #   [28.54, 16.64,  0.  ],
-    #   [26.18, 14.76,  0.  ],
-    #   [22.28,  5.84,  0.  ],
-    #   [4.95, 3.95, 0.  ],
-    #   [ 8.08, 27.02,  0.  ],
-    #   [15.63, 20.38,  0.  ],
-    #   [24.59, 28.69,  0.  ],
-    #   [ 2.4 , 22.39,  0.  ],
-    #   [15.75, 25.06,  0.  ],
-    #   [9.76, 7.18, 0.  ]
-    # ])
-
-
-        #   for index_sensor_unmeasured in mask_sensors_unmeasured:
-        # distances_measured = np.full(len(targets), np.nan)
-        # for index_targets_unlocalized in mask_targets_unlocalized:
-        #   distance_accurate = np.linalg.norm(targets[index_targets_unlocalized, :2] - sensors_original[index_sensor_unmeasured, :2])
-        #   distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
-        #   distances_measured[index_targets_unlocalized] = distance_measured
-        # distances_measured_list = np.append(distances_measured_list, [distances_measured], axis=0)

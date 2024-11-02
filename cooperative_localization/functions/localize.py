@@ -57,7 +57,9 @@ if __name__ == "__main__":
     error_threshold = config["model"]["error_threshold"]
     model_type = config["model"]["type"]
     model_filename = config["model"]["filename"]
-    model_filepath = f"../models/{model_type}/{model_filename}"
+    model_subdirname = "successive"
+    model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+    # model_filepath = f"../models/{model_type}/{model_filename}"
     model = joblib.load(model_filepath)
     print("Error 'Recursive' Prediction" if is_recursive else "Error Prediction", end=" ")
     print(f"by Machine Learning (model: {model_type}/{model_filename})")

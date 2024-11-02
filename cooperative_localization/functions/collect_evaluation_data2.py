@@ -84,14 +84,9 @@ if __name__ == "__main__":
     print(f"({anchor_x}, {anchor_y})", end=" ")
   print(f"\n=> anchor count: {len(anchors_config)}")
 
-  targets = np.array([[field_range["x_top"]*i/8.0, field_range["y_top"]*j/8.0, 0.0] for i in [3, 5, 7] for j in [3, 5, 7]])
-  targets_count: int = len(targets)
-  print("target: (x, y) = ", end="")
-  for target in targets:
-    target_x = target[0]
-    target_y = target[1]
-    print(f"({target_x}, {target_y})", end=" ")
-  print(f"\n=> target count: {len(targets)}")
+  targets_count: int = config["targets"]["count"]
+  print("target: (x, y) = random", end="")
+  print(f"\n=> target count: {targets_count}")
 
   # Fingerprint Config
   # fingerprint_filename = "fingerprint_0.csv"
@@ -105,12 +100,12 @@ if __name__ == "__main__":
   # Feature 
   features_list = np.empty((0, 5))
 
-  # Sample
-  sample_data_count = config["sample_data"]["count"]
-  sample_data_filename = config["sample_data"]["filename"]
-  sample_data_subdirname = "successive" if is_successive else "collective"
-  sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
-  print(f"{sample_data_filename} will be saved in {sample_data_filepath}")
+  # Evaluation
+  evaluation_data_count = config["evaluation_data"]["count"]
+  evaluation_data_filename = config["evaluation_data"]["filename"]
+  evaluation_data_subdirname = "successive" if is_successive else "collective"
+  evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
+  print(f"{evaluation_data_filename} will be saved in {evaluation_data_filepath}.")
 
   # Learning Model
   error_threshold = config["model"]["error_threshold"]
@@ -124,16 +119,15 @@ if __name__ == "__main__":
   print("", end="\n")
 
   # シミュレーション開始
-  while np.sum(features_list[:, -1] < error_threshold) < sample_data_count or np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+  while np.sum(features_list[:, -1] < error_threshold) < evaluation_data_count or np.sum(features_list[:, -1] >= error_threshold) < evaluation_data_count:
 
     # sensor は anchor と reference で構成
     sensors_original = np.copy(anchors) # 実際の座標
     sensors = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
-    targets[:, 2] = 0.0
-    rng = np.random.default_rng()
-    rng.shuffle(targets, axis=0)
+    targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
+    np.random.shuffle(targets)
 
     # 平方根誤差のリスト
     squared_error_list = np.array([])
@@ -258,9 +252,9 @@ if __name__ == "__main__":
           # 誤差の特徴量はfeaturesの配列の一番最後に
           feature_error = np.sqrt(squared_error)
           features = np.append(features, feature_error)
-          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
+          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < evaluation_data_count:
             features_list = np.append(features_list, [features], axis=0)
-          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+          if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < evaluation_data_count:
             features_list = np.append(features_list, [features], axis=0)
 
           # 協調測位であれば測位したTNをSNに追加する（RNに変更する）
@@ -319,7 +313,7 @@ if __name__ == "__main__":
     sim_cycle += 1
     positive = np.sum(features_list[:, -1] < error_threshold)
     negative = np.sum(features_list[:, -1] >= error_threshold)
-    print(f"positive: {positive}/{sample_data_count} negative: {negative}/{sample_data_count}", end=" ")
+    print(f"positive: {positive}/{evaluation_data_count} negative: {negative}/{evaluation_data_count}", end=" ")
     print("RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
 
   print("\n")
@@ -334,7 +328,7 @@ if __name__ == "__main__":
     "error": features_list[:, 4]
   })
 
-  features_data.to_csv(sample_data_filepath, index=False)
-  print(f"{sample_data_filename} was saved in {sample_data_filepath}")
+  features_data.to_csv(evaluation_data_filepath, index=False)
+  print(f"{evaluation_data_filename} was saved in {evaluation_data_filepath}")
 
   print("\ncomplete.")

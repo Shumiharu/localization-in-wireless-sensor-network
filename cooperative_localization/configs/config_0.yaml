@@ -36,7 +36,7 @@ localization:
   is_successive: false # 逐次的に測位する（従来手法）
   is_cooperative: true # 協調を行うか
   is_predictive: true # モデルによる誤差予測
-  is_recursive: false # 再帰的に誤差予測を行う
+  is_recursive: true # 再帰的に誤差予測を行う
   is_sorted: true # 推定座標決定のための並びかえ
   max_loop: 7
   max_distance_measurement: 1
@@ -44,20 +44,20 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_1.csv
+  filename: sample_data_0.csv
   # filename: sample_data_yamamoto_2.csv
-  count: 1000
+  count: 10000
 fingerprint:
   filename: fingerprint_0.csv
   count: 10000
 model:
   # filename: model_yamamoto_2.pkl
-  type: svm # svm / rf / lgb / nn
-  filename: model_1.pkl
+  type: nn # svm / rf / lgb / nn
+  filename: model_0.pkl
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_1.csv
+  filename: evaluation_data_0.csv
   # filename: evaluation_data_yamamoto_2.csv
-  count: 1000
+  count: 10000
 sim_cycles: 10000
