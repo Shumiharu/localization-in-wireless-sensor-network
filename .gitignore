@@ -1,8 +1,10 @@
 .DS_Store
 .vscode
 .backup
+nohup.out
 
 cooperative_localization/functions/_.py
+cooperative_localization/functions/nohup.out
 cooperative_localization/functions/__pycache__
 cooperative_localization/functions/basis/__pycache__
 cooperative_localization/functions/feature/__pycache__
