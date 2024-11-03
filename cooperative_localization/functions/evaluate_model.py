@@ -20,20 +20,26 @@ if __name__ == "__main__":
     config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
+    print(f"{config_filename} was loaded from {config_filepath}")
 
-  # Read Evaluation Data File
-  evaluation_data_filename = config["evaluation_data"]["filename"]
-  evaluation_data_filepath = "../evaluation_data/" + evaluation_data_filename
-  features_evaluation_data = pd.read_csv(evaluation_data_filepath)
-  features_evaluation_list = features_evaluation_data.to_numpy()
-  print(f"{evaluation_data_filename} was loaded from {evaluation_data_filepath}")
-  
-  # Load Model File
+  # Learning Model
+  is_built_successively = config["model"]["is_built_successively"]
+
+  model_subdirname = "successive" if is_built_successively else "collective"
   model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
-  model_filepath = f"../models/{model_type}/{model_filename}"
+  model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
   model = joblib.load(model_filepath)
-  print(f"{model_filename} was loaded from {model_type}/{model_filepath}.")
+  print(f"\n{model_filename} was loaded from {model_type} -> {model_filepath}.")
+
+  # Read Evaluation Data File
+  evaluation_data_subdirname = model_subdirname
+  evaluation_data_filename = config["evaluation_data"]["filename"]
+  evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
+  features_evaluation_data = pd.read_csv(evaluation_data_filepath)
+  features_evaluation_list = features_evaluation_data.to_numpy()
+  print(f"\n{evaluation_data_filename} was loaded from {evaluation_data_filepath}")
+  
 
   error_threshold = config["model"]["error_threshold"]
   labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)

@@ -61,4 +61,4 @@ evaluation_data:
   filename: evaluation_data_0.csv # デバッグは"evaluation_data_10"を使う
   # filename: evaluation_data_yamamoto_2.csv
   count: 10000
-sim_cycles: 100000
+sim_cycles: 100

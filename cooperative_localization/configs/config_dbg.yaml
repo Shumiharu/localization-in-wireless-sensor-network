@@ -52,7 +52,8 @@ fingerprint:
   count: 100
 model:
   # filename: model_yamamoto_2.pkl
-  type: nn # svm / rf / lgb / nn
+  type: svm # svm / rf / lgb / nn
+  is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
   filename: model_dbg.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]

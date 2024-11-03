@@ -29,20 +29,26 @@ if __name__ == "__main__":
     config = yaml.safe_load(config_file)
     print(f"{config_filename} was loaded from {config_filepath}")
 
-  # サンプルデータの読み出し
-  sample_data_filename = config["sample_data"]["filename"]
-  sample_data_filepath = "../sample_data/" + sample_data_filename
-  features_data = pd.read_csv(sample_data_filepath)
-  features_sample_list = features_data.to_numpy()
-  print(f"{sample_data_filename} was loaded.")
-
-  # Model
+  # Learning Model
+  is_built_successively = config["model"]["is_built_successively"]
+  
+  model_subdirname = "successive" if is_built_successively else "collective"
   model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
-  model_filepath = f"../models/{model_type}/{model_filename}"
-  error_threshold = config["model"]["error_threshold"]
+  model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+  print(f"\nModel will be built in {model_filepath}")
+
+  # Read Sample Data
+  is_successive = config["localization"]["is_successive"]
+  sample_data_subdirname = model_subdirname
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
+  features_data = pd.read_csv(sample_data_filepath)
+  features_sample_list = features_data.to_numpy()
+  print(f"\n{sample_data_filename} was loaded from {sample_data_filepath}")
 
   # 正解ラベル
+  error_threshold = config["model"]["error_threshold"]
   labels = np.where(features_sample_list[:, -1] >= error_threshold, 1, 0)
   # labels = features_sample_list[:, -1] # 山本先輩結果合わせのため
 
@@ -69,7 +75,7 @@ if __name__ == "__main__":
 
   # neural network
   if model_type == "nn":
-    pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0))
+    pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0, max_iter=500, early_stopping=True))
     cost_parameter_grid = [{"mlpclassifier__learning_rate_init":[0.01,0.005,0.001]}]
 
   # グリッドサーチ
