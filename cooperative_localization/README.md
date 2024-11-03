@@ -1,6 +1,7 @@
 # Cooperative Localization
 nohup python launch.py config_0 &
 nohup python launch.py config_0 > /dev/null 2>&1 &
+nohup python launch.py config_0 > /dev/null 2> error.log &
 ## メモをここに残していきます
 実際には測距できてないけど，推定座標位置からすると測距できる位置にいるので誤差が大きいと考えられるセンサノード -> VN
 じゃあどうやって測距できる距離かサーバーが判定するの？
