@@ -51,7 +51,7 @@ fingerprint:
   filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
   count: 10000
 model:
-  type: svm # svm / rf / lgb / nn
+  type: lgb # svm / rf / lgb / nn
   # filename: model_yamamoto_2.pkl
   is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
   filename: model_0.pkl # デバッグは"model_dbg"を使う

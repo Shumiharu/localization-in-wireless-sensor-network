@@ -46,5 +46,20 @@ if __name__ == "__main__":
   # labels = features_evaluation_list[:, -1] # 山本先輩結果合わせのため
   predicted = model.predict(features_evaluation_list[:, :-1])
 
-  print(f"accuracy_score: {accuracy_score(y_true=labels, y_pred=predicted)}")
-  print(f"recall_score: {recall_score(y_true=labels, y_pred=predicted)}")
+  accuracy = accuracy_score(y_true=labels, y_pred=predicted)
+  recall = recall_score(y_true=labels, y_pred=predicted)
+
+  print(f"accuracy_score: {accuracy}")
+  print(f"recall_score: {recall}")
+
+  if is_subprocess:
+    output_dirpath = args[1]
+    score_data = pd.DataFrame({
+      "type": [model_type],
+      "model_filepath": [model_filepath],
+      "accuracy_score": [accuracy],
+      "recall_score": [recall]
+    })
+    score_data_filepath = os.path.join(output_dirpath, 'model_score.csv')
+    score_data.to_csv(score_data_filepath, index=False)
+    print(f"model_score.csv was saved in {score_data_filepath}.")
