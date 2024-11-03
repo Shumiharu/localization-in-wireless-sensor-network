@@ -102,4 +102,5 @@ if __name__ == "__main__":
   except subprocess.CalledProcessError as e:
     print(e)
     exit()
-  print("\ncomplete.")
+    
+  print("\nAll process completed.")
