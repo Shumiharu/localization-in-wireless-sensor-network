@@ -29,24 +29,26 @@ if __name__ == "__main__":
     config = yaml.safe_load(config_file)
     print(f"{config_filename} was loaded from {config_filepath}")
 
-  # サンプルデータの読み出し
+  # Learning Model
+  is_built_successively = config["model"]["is_built_successively"]
+  
+  model_subdirname = "successive" if is_built_successively else "collective"
+  model_type = config["model"]["type"]
+  model_filename = config["model"]["filename"]
+  model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+  print(f"\nModel will be built in {model_filepath}")
+
+  # Read Sample Data
   is_successive = config["localization"]["is_successive"]
+  sample_data_subdirname = model_subdirname
   sample_data_filename = config["sample_data"]["filename"]
-  sample_data_subdirname = "successive" if is_successive else "collective"
   sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
   features_data = pd.read_csv(sample_data_filepath)
   features_sample_list = features_data.to_numpy()
-  print(f"{sample_data_filename} was loaded from {sample_data_filepath}")
-
-  # Model
-  model_type = config["model"]["type"]
-  model_filename = config["model"]["filename"]
-  model_subdirname = sample_data_subdirname
-  model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
-  error_threshold = config["model"]["error_threshold"]
-  print(f"\nModel will be built in {model_filepath}")
+  print(f"\n{sample_data_filename} was loaded from {sample_data_filepath}")
 
   # 正解ラベル
+  error_threshold = config["model"]["error_threshold"]
   labels = np.where(features_sample_list[:, -1] >= error_threshold, 1, 0)
   # labels = features_sample_list[:, -1] # 山本先輩結果合わせのため
 

@@ -40,7 +40,7 @@ if __name__ == "__main__":
     print(f"\n{config_filename} was loaded from {config_filepath}\n")
 
   # Localization Config
-  is_successive: bool = config["localization"]["is_successive"]
+  # is_successive: bool = config["localization"]["is_successive"]
   is_cooperative = True # 基本はTrue
   # is_cooperative: bool = config["localization"]["is_cooperative"]
   # is_sorted = config["localization"]["is_sorted"]
@@ -53,10 +53,13 @@ if __name__ == "__main__":
 
   print("Localization: Least Square (LS) Method", end=" ")
   print("with Cooperation" if is_cooperative else "without Cooperation", end=" ")
-  print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
 
   # print("\nEstimated targets (variable: targets_estimated) are localized", end=" ")
   # print("in order from the center." if is_sorted else "in that order.")
+
+  # Learning Model
+  is_successive = config["model"]["is_built_successively"]
+  print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
 
   # Field Config
   field_range = config["field_range"]
@@ -124,7 +127,7 @@ if __name__ == "__main__":
   print("", end="\n")
 
   # シミュレーション開始
-  while np.sum(features_list[:, -1] < error_threshold) < sample_data_count or np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+  while np.sum(features_list[:, -1] >= error_threshold) < sample_data_count or np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
 
     # sensor は anchor と reference で構成
     sensors_original = np.copy(anchors) # 実際の座標
@@ -258,10 +261,11 @@ if __name__ == "__main__":
           # 誤差の特徴量はfeaturesの配列の一番最後に
           feature_error = np.sqrt(squared_error)
           features = np.append(features, feature_error)
-          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
-            features_list = np.append(features_list, [features], axis=0)
           if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
             features_list = np.append(features_list, [features], axis=0)
+          if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
+            features_list = np.append(features_list, [features], axis=0)
+
 
           # 協調測位であれば測位したTNをSNに追加する（RNに変更する）
           if is_cooperative:
@@ -317,8 +321,8 @@ if __name__ == "__main__":
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
     
     sim_cycle += 1
-    positive = np.sum(features_list[:, -1] < error_threshold)
-    negative = np.sum(features_list[:, -1] >= error_threshold)
+    positive = np.sum(features_list[:, -1] >= error_threshold)
+    negative = np.sum(features_list[:, -1] < error_threshold)
     print(f"positive: {positive}/{sample_data_count} negative: {negative}/{sample_data_count}", end=" ")
     print("RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
 

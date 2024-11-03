@@ -40,7 +40,7 @@ if __name__ == "__main__":
     print(f"\n{config_filename} was loaded from {config_filepath}\n")
 
   # Localization Config
-  is_successive: bool = config["localization"]["is_successive"]
+  # is_successive: bool = config["localization"]["is_successive"]
   is_cooperative = True # 基本はTrue
   # is_cooperative: bool = config["localization"]["is_cooperative"]
   # is_sorted = config["localization"]["is_sorted"]
@@ -53,10 +53,14 @@ if __name__ == "__main__":
 
   print("Localization: Least Square (LS) Method", end=" ")
   print("with Cooperation" if is_cooperative else "without Cooperation", end=" ")
-  print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
+  # print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
 
   # print("\nEstimated targets (variable: targets_estimated) are localized", end=" ")
   # print("in order from the center." if is_sorted else "in that order.")
+
+  # Learning Model
+  is_successive = config["model"]["is_built_successively"]
+  print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
 
   # Field Config
   field_range = config["field_range"]

@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 # 基本関数
 from basis import distance_toa
 from basis import target_coordinates
+from basis import distances_avg
 
 # 特徴量の算出
 from feature import distance_error_squared
@@ -181,10 +182,12 @@ if __name__ == "__main__":
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
 
-    distances_measured_list = np.empty((0, len(targets)))
+    # distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
     targets_unlocalized_count = np.zeros(len(targets))
+    # distances_measured_list_count = np.empty((0, len(targets)))
     index_targets_begin = 0
+    is_initial_distances_measurement = True
 
     # 測位開始時間を取得
     time_localization_start = time.time()
@@ -207,6 +210,7 @@ if __name__ == "__main__":
       # print(f"shift_targets_begin: {shift_targets_begin}")
       # print(f"mask_targets_unlocalized: {mask_targets_unlocalized}")
 
+      # 測距値の算出
       distances_measured_list = np.array([
         [
           distance_toa.calculate(channel, max_distance_measurement, np.linalg.norm(target[:2] - sensor_original[:2]))[0] if index_target in mask_targets_unlocalized else np.nan
@@ -214,6 +218,14 @@ if __name__ == "__main__":
         ]
         for sensor_original in sensors_original[mask_sensors_unmeasured]
       ])
+
+      # 平均測距値の算出（今回の試行で測距不能でも，前回の試行で測距値が得られていたならばそちらを利用する）
+      if is_initial_distances_measurement: 
+        distances_measured_list_avg = distances_measured_list
+        distances_measured_list_count = np.where(np.isinf(distances_measured_list), 0, 1)
+        is_initial_distances_measurement = False
+      else:
+        distances_measured_list_avg, distances_measured_list_count = distances_avg.calculate(distances_measured_list_avg, distances_measured_list, distances_measured_list_count)
         
       # 測距フラグの更新
       # if not is_successive:
@@ -222,14 +234,16 @@ if __name__ == "__main__":
       # 一時測位フェーズ
       targets_estimated_initial = np.empty((0, 2))
       mask_targets_estimated_initial = np.array([], dtype="int")
-      distances_measured_list_transposed = distances_measured_list.T
-      for index_targets_unlocalized, distances_measured_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_transposed[mask_targets_unlocalized]):
+      # distances_measured_list_transposed = distances_measured_list.T
+      distances_measured_list_avg_transposed = distances_measured_list_avg.T
+      
+      for index_targets_unlocalized, distances_measured_avg_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_avg_transposed[mask_targets_unlocalized]):
         
         # 最大測位回数を超えてなければ推定座標を算出
         if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
 
-          mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_for_targets_unlocalized)
-          distances_estimated_for_targets_unlocalized = distances_measured_for_targets_unlocalized[mask_distance_measurable_for_targets_unlocalized]
+          mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_avg_for_targets_unlocalized)
+          distances_estimated_for_targets_unlocalized = distances_measured_avg_for_targets_unlocalized[mask_distance_measurable_for_targets_unlocalized]
           sensors_available_for_targets_unlocalized = sensors[mask_distance_measurable_for_targets_unlocalized]
           if len(distances_estimated_for_targets_unlocalized) >= 3:
 
@@ -244,7 +258,7 @@ if __name__ == "__main__":
             if not np.any(np.isnan(target_estimated_initial)):
               targets_estimated_initial = np.append(targets_estimated_initial, [target_estimated_initial], axis=0)
               mask_targets_estimated_initial = np.append(mask_targets_estimated_initial, index_targets_unlocalized)
-              if is_successive:
+              if is_successive and not is_sorted:
                 break
             # else:
             #   targets_unlocalized_count[index_targets_unlocalized] += 1
@@ -262,7 +276,8 @@ if __name__ == "__main__":
         if is_sorted:
           # ANの中心に近い方から座標を順に決定
           mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
-          # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))[:1]
+          if is_successive:
+            mask_sorted = mask_sorted[:1]
 
         targets_estimated = targets_estimated_initial[mask_sorted]
         mask_targets_estimated = mask_targets_estimated_initial[mask_sorted]
@@ -272,10 +287,10 @@ if __name__ == "__main__":
           target = targets[index_targets_estimated]
           # print(f"target: {target}")
 
-          distances_measured_for_target_estimated = distances_measured_list_transposed[index_targets_estimated]
-          mask_distance_measurable_for_target_estimated = ~np.isinf(distances_measured_for_target_estimated)
+          distances_measured_avg_for_target_estimated = distances_measured_list_avg_transposed[index_targets_estimated]
+          mask_distance_measurable_for_target_estimated = ~np.isinf(distances_measured_avg_for_target_estimated)
 
-          distances_estimated_for_target_estimated = distances_measured_for_target_estimated[mask_distance_measurable_for_target_estimated]
+          distances_estimated_for_target_estimated = distances_measured_avg_for_target_estimated[mask_distance_measurable_for_target_estimated]
           sensors_available_for_target_estimated = sensors[:len(mask_distance_measurable_for_target_estimated)][mask_distance_measurable_for_target_estimated]
           sensors_available_for_target_estimated_orignal = np.copy(sensors_available_for_target_estimated)
 
