@@ -35,7 +35,7 @@ if __name__ == "__main__":
   is_subprocess = True if len(args) == 2 else False
 
   # Open configuration file
-  config_filename = "config_dbg.yaml"
+  config_filename = "config_0.yaml"
   config_filepath = "../configs/" + config_filename
   if is_subprocess:
     config_filepath = os.path.join(args[1], "config.yaml")
