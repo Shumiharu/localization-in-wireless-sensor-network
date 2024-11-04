@@ -35,7 +35,7 @@ if __name__ == "__main__":
   is_subprocess = True if len(args) == 2 else False
 
   # Open configuration file
-  config_filename = "config_0.yaml"
+  config_filename = "config_dbg.yaml"
   config_filepath = "../configs/" + config_filename
   if is_subprocess:
     config_filepath = os.path.join(args[1], "config.yaml")
@@ -457,7 +457,8 @@ if __name__ == "__main__":
   # 結果を出力
   result_data = pd.DataFrame({
     "RMSE": [root_mean_squared_error_avg],
-    "Avg. Localization Prob.": [localizable_probability_avg]
+    "Avg. Localization Prob.": [localizable_probability_avg],
+    "Avg. Localization Duration per target": [duration_localization_per_target_avg]
   })
   if is_recursive:
     result_data["Avg. Recursive Count"] = [recursive_count_avg]

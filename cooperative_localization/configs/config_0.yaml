@@ -34,7 +34,7 @@ targets:
   count: 20
 localization:
   is_successive: false # 逐次的に測位する（従来手法）
-  is_sorted: true # is_successive: true の場合はANの中心から最も近い推定座標のみを測位 falseの場合はANの中心から近い順に測位
+  is_sorted: false # is_successive: true の場合はANの中心から最も近い推定座標のみを測位 falseの場合はANの中心から近い順に測位
   is_cooperative: true # 協調を行うか
   is_predictive: true # モデルによる誤差予測
   is_recursive: true # 再帰的に誤差予測を行う
@@ -44,21 +44,21 @@ localization:
     max_loop: 10
     threshold: 10**(-8)
 sample_data:
-  filename: sample_data_0.csv # デバッグは"sample_data_dbg"を使う
+  filename: sample_data_13.csv # デバッグは"sample_data_dbg"を使う
   # filename: sample_data_yamamoto_2.csv
   count: 10000
 fingerprint:
-  filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
+  filename: fingerprint_13.csv # デバッグは"fingerprint_dbg"を使う
   count: 10000
 model:
-  type: lgb # svm / rf / lgb / nn
+  type: nn # svm / rf / lgb / nn
   # filename: model_yamamoto_2.pkl
   is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
-  filename: model_0.pkl # デバッグは"model_dbg"を使う
+  filename: model_13.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
-  filename: evaluation_data_0.csv # デバッグは"evaluation_data_10"を使う
+  filename: evaluation_data_13.csv # デバッグは"evaluation_data_10"を使う
   # filename: evaluation_data_yamamoto_2.csv
   count: 10000
-sim_cycles: 100
+sim_cycles: 100000
