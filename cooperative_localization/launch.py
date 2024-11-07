@@ -44,7 +44,8 @@ if __name__ == "__main__":
   
   # 機械学習を利用しない場合は1~4のステップを省略
   is_predictive = config["localization"]["is_predictive"]
-  if is_predictive:
+  is_models_example = config["model"]["is_example"]
+  if is_predictive and not is_models_example:
     # 1. Collect Sample Data
     try:
       command_collect_sample_data = f"cd functions && python collect_sample_data.py ../{output_dirpath}"
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as e:
       print(e)
       exit()
-    print("Collecting sample data...")
+    # print("Collecting sample data...")
 
     # 2. Collect Evaluation Data
     try:
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as e:
       print(e)
       exit()
-    print("Collecting Evaluation data...")
+    # print("Collecting Evaluation data...")
     
     process_collect_sample_data.wait()
     print("\nSample data was collected.")

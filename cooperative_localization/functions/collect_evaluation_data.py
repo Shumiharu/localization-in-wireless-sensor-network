@@ -59,8 +59,22 @@ if __name__ == "__main__":
   # print("in order from the center." if is_sorted else "in that order.")
 
   # Learning Model
+  error_threshold = config["model"]["error_threshold"]
   is_successive = config["model"]["is_built_successively"]
   print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
+
+  # Evaluation
+  evaluation_data_count = config["evaluation_data"]["count"]
+  evaluation_data_filename = config["evaluation_data"]["filename"]
+  evaluation_data_subdirname = "successive" if is_successive else "collective"
+  evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
+
+  is_evaluation_data_example = config["evaluation_data"]["is_example"]
+  if is_evaluation_data_example:
+    evaluation_data_filepath = f"../evaluation_data_example/{evaluation_data_subdirname}/{evaluation_data_filename}"
+    print(f"evaluation data is referenced at {evaluation_data_filepath}")
+    sys.exit(0)
+  print(f"{evaluation_data_filename} will be saved in {evaluation_data_filepath}.\n")
 
   # Field Config
   field_range = config["field_range"]
@@ -103,16 +117,6 @@ if __name__ == "__main__":
 
   # Feature 
   features_list = np.empty((0, 5))
-
-  # Evaluation
-  evaluation_data_count = config["evaluation_data"]["count"]
-  evaluation_data_filename = config["evaluation_data"]["filename"]
-  evaluation_data_subdirname = "successive" if is_successive else "collective"
-  evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
-  print(f"{evaluation_data_filename} will be saved in {evaluation_data_filepath}.")
-
-  # Learning Model
-  error_threshold = config["model"]["error_threshold"]
 
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
@@ -315,8 +319,8 @@ if __name__ == "__main__":
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
     
     sim_cycle += 1
-    positive = np.sum(features_list[:, -1] < error_threshold)
-    negative = np.sum(features_list[:, -1] >= error_threshold)
+    positive = np.sum(features_list[:, -1] >= error_threshold)
+    negative = np.sum(features_list[:, -1] < error_threshold)
     print(f"positive: {positive}/{evaluation_data_count} negative: {negative}/{evaluation_data_count}", end=" ")
     print("RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
 

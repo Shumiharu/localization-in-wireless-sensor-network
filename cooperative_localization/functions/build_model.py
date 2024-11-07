@@ -39,10 +39,12 @@ if __name__ == "__main__":
   print(f"\nModel will be built in {model_filepath}")
 
   # Read Sample Data
-  is_successive = config["localization"]["is_successive"]
+  is_sample_data_example = config["sample_data"]["is_example"]
   sample_data_subdirname = model_subdirname
   sample_data_filename = config["sample_data"]["filename"]
   sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
+  if is_sample_data_example:
+    sample_data_filepath = f"../sample_data_example/{sample_data_subdirname}/{sample_data_filename}"
   features_data = pd.read_csv(sample_data_filepath)
   features_sample_list = features_data.to_numpy()
   print(f"\n{sample_data_filename} was loaded from {sample_data_filepath}")

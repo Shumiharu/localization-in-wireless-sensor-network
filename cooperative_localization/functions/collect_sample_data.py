@@ -58,8 +58,22 @@ if __name__ == "__main__":
   # print("in order from the center." if is_sorted else "in that order.")
 
   # Learning Model
+  error_threshold = config["model"]["error_threshold"]
   is_successive = config["model"]["is_built_successively"]
   print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
+
+  # Sample
+  sample_data_count = config["sample_data"]["count"]
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_subdirname = "successive" if is_successive else "collective"
+  sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
+
+  is_sample_data_example = config["sample_data"]["is_example"]
+  if is_sample_data_example:
+    sample_data_filepath = f"../sample_data_example/{sample_data_subdirname}/{sample_data_filename}"
+    print(f"sample data is referenced at {sample_data_filepath}")
+    sys.exit(0)
+  print(f"{sample_data_filename} will be saved in {sample_data_filepath}\n")
 
   # Field Config
   field_range = config["field_range"]
@@ -107,16 +121,6 @@ if __name__ == "__main__":
 
   # Feature 
   features_list = np.empty((0, 5))
-
-  # Sample
-  sample_data_count = config["sample_data"]["count"]
-  sample_data_filename = config["sample_data"]["filename"]
-  sample_data_subdirname = "successive" if is_successive else "collective"
-  sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
-  print(f"{sample_data_filename} will be saved in {sample_data_filepath}")
-
-  # Learning Model
-  error_threshold = config["model"]["error_threshold"]
 
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差

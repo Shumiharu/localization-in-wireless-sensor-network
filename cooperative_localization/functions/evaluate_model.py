@@ -24,23 +24,27 @@ if __name__ == "__main__":
 
   # Learning Model
   is_built_successively = config["model"]["is_built_successively"]
-
+  is_models_example = config["model"]["is_example"]
   model_subdirname = "successive" if is_built_successively else "collective"
   model_type = config["model"]["type"]
   model_filename = config["model"]["filename"]
   model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+  if is_models_example:
+    model_filepath = f"../models_example/{model_subdirname}/{model_type}/{model_filename}"
   model = joblib.load(model_filepath)
   print(f"\n{model_filename} was loaded from {model_type} -> {model_filepath}.")
 
   # Read Evaluation Data File
+  is_evaluation_data_example = config["evaluation_data"]["is_example"]
   evaluation_data_subdirname = model_subdirname
   evaluation_data_filename = config["evaluation_data"]["filename"]
   evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
+  if is_evaluation_data_example:
+    evaluation_data_filepath = f"../evaluation_data_example/{evaluation_data_subdirname}/{evaluation_data_filename}"
   features_evaluation_data = pd.read_csv(evaluation_data_filepath)
   features_evaluation_list = features_evaluation_data.to_numpy()
   print(f"\n{evaluation_data_filename} was loaded from {evaluation_data_filepath}")
   
-
   error_threshold = config["model"]["error_threshold"]
   labels = np.where(features_evaluation_list[:, -1] >= error_threshold, 1, 0)
   # labels = features_evaluation_list[:, -1] # 山本先輩結果合わせのため
