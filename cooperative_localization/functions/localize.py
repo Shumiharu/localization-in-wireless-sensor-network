@@ -389,8 +389,8 @@ if __name__ == "__main__":
 
       is_localizable = np.any(targets_unlocalized_count[mask_targets_unlocalized] < max_localization_loop)
       # if not is_localizable:
-        # print(f"\ntargets:\n {targets}")
-        # print(f"unlocalized count:\n{targets_unlocalized_count}")
+      #   print(f"\ntargets:\n {targets}")
+      #   print(f"unlocalized count:\n{targets_unlocalized_count}")
 
       if len(targets_localized) == targets_count:
         break
