@@ -36,9 +36,9 @@ localization:
   is_successive: false # 逐次的に測位する（従来手法）
   is_sorted: true # is_successive: true の場合はANの中心から最も近い推定座標のみを測位 falseの場合はANの中心から近い順に測位
   is_cooperative: true # 協調を行うか
-  is_predictive: true # モデルによる誤差予測
+  is_predictive: false # モデルによる誤差予測
   is_recursive: false # 再帰的に誤差予測を行う
-  max_loop: 7
+  max_loop: 1
   max_distance_measurement: 1
   newton_raphson:
     max_loop: 10
@@ -53,11 +53,11 @@ fingerprint:
   filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
   count: 10000
 model:
-  type: svm # svm / rf / lgb / nn
+  type: svm # svm / rf / lgb / nn / xgb
   # filename: model_yamamoto_2.pkl
   is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
-  is_example: false # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
-  filename: model_00.pkl # デバッグは"model_dbg"を使う
+  is_example: true # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
+  filename: model_0.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
