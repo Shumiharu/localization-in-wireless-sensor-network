@@ -5,8 +5,11 @@ import pandas as pd
 import yaml
 import joblib
 
-from sklearn.metrics import recall_score
+
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+
 
 if __name__ == "__main__":
 
@@ -51,9 +54,11 @@ if __name__ == "__main__":
   predicted = model.predict(features_evaluation_list[:, :-1])
 
   accuracy = accuracy_score(y_true=labels, y_pred=predicted)
+  precision = precision_score(y_true=labels, y_pred=predicted)
   recall = recall_score(y_true=labels, y_pred=predicted)
 
   print(f"accuracy_score: {accuracy}")
+  print(f"precision_score: {precision}")
   print(f"recall_score: {recall}")
 
   if is_subprocess:
@@ -62,6 +67,7 @@ if __name__ == "__main__":
       "type": [model_type],
       "model_filepath": [model_filepath],
       "accuracy_score": [accuracy],
+      "precision_score": [precision],
       "recall_score": [recall]
     })
     score_data_filepath = os.path.join(output_dirpath, 'model_score.csv')
