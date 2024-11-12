@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import yaml
 import joblib
+import matplotlib
 import matplotlib.pyplot as plt
 
 import lightgbm as lgb
@@ -20,6 +21,17 @@ from sklearn.model_selection import GridSearchCV
 
 from sklearn.model_selection import validation_curve
 from sklearn.model_selection import learning_curve
+
+def can_use_matplotlib():
+    try:
+        # Use a non-GUI backend
+        matplotlib.use('Agg')
+        plt.figure()
+        plt.plot([1, 2, 3], [1, 4, 9])
+        plt.close()
+        return True
+    except:
+        return False
 
 def plot_validation_curve(model, explanatory_variables_train, labels_train, param_name, param_range, param_scales, cv, scoring, best_param_):
     
@@ -119,6 +131,8 @@ if __name__ == "__main__":
   # Learning Model
   is_built_successively = config["model"]["is_built_successively"]
   is_plot_curves = config["model"]["is_plot_curves"]
+  if not can_use_matplotlib:
+    is_plot_curves = False
   
   model_subdirname = "successive" if is_built_successively else "collective"
   model_type = config["model"]["type"]
