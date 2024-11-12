@@ -33,7 +33,7 @@ def can_use_matplotlib():
     except:
         return False
 
-def plot_validation_curve(model, explanatory_variables_train, labels_train, param_name, param_range, param_scales, cv, scoring, best_param_):
+def plot_validation_curve(model, X, y, param_name, param_range, param_scales, cv, scoring, best_param_):
     
     # param_rangeにNone，もしくは文字列が含まれる場合，以下の処理は行わない
     if any(isinstance(item, str) or item is None for item in param_range):
@@ -41,8 +41,8 @@ def plot_validation_curve(model, explanatory_variables_train, labels_train, para
     
     train_scores, valid_scores = validation_curve(
       estimator=model,
-      X=explanatory_variables_train,
-      y=labels_train,
+      X=X,
+      y=y,
       param_name=param_name,
       param_range=param_range,
       cv=cv,
@@ -74,11 +74,11 @@ def plot_validation_curve(model, explanatory_variables_train, labels_train, para
     plt.grid()
     plt.show()
 
-def plot_learning_curve(model, explanatory_variables_train, labels_train, cv, scoring):
+def plot_learning_curve(model, X, y, cv, scoring):
     train_sizes, train_scores, valid_scores = learning_curve(
         estimator=model,
-        X=explanatory_variables_train,
-        y=labels_train,
+        X=X,
+        y=y,
         train_sizes=np.linspace(0.1, 1.0, 10),
         cv=cv,
         scoring=scoring,
@@ -156,6 +156,11 @@ if __name__ == "__main__":
   labels = np.where(features_sample_list[:, -1] >= error_threshold, 1, 0)
   # labels = features_sample_list[:, -1] # 山本先輩結果合わせのため
 
+
+  # 説明変数とfeatures_sample_list[:, :-1]
+  X = features_sample_list[:, :-1]
+  y = labels
+
   # 学習用と評価をランダムに抽出
   explanatory_variables_train, explanatory_variables_test, labels_train, labels_test = train_test_split(features_sample_list[:, :-1], labels, stratify=labels, random_state=0)
 
@@ -190,13 +195,13 @@ if __name__ == "__main__":
     pipe_line = make_pipeline(StandardScaler(), lgb.LGBMClassifier(random_state=0))
     param_config = {
       # 'lgbmclassifier__n_estimators': ([5,10,15], 'linear'),
-      'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10], 'log'),
-      'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10], 'log'),
-      'lgbmclassifier__num_leaves': ([2, 4, 8, 16, 32, 64, 96, 128, 160, 192, 224, 256], 'linear'),
-      'lgbmclassifier__colsample_bytree': ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'linear'),
-      'lgbmclassifier__subsample': ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'linear'),
-      'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
-      'lgbmclassifier__min_child_samples': ([0, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], 'linear'),
+      'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'),
+      'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'),
+      'lgbmclassifier__num_leaves': ([2, 4, 8, 16, 32], 'linear'),
+      'lgbmclassifier__colsample_bytree': ([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'linear'),
+      'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'),
+      # 'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
+      'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'),
     }
 
   # xgboost （勾配ブースティング木）
@@ -234,8 +239,8 @@ if __name__ == "__main__":
     # 検証曲線の表示
     for key, value in param_config.items():
       plot_validation_curve(model=model,
-                            explanatory_variables_train=explanatory_variables_train,
-                            labels_train=labels_train,
+                            X=X,
+                            y=y,
                             param_name=key,
                             param_range=value[0],
                             param_scales=value[1],
@@ -283,8 +288,8 @@ if __name__ == "__main__":
   if is_plot_curves:
     plot_learning_curve(
       model=model,
-      explanatory_variables_train=explanatory_variables_train,
-      labels_train=labels_train,
+      X=X,
+      y=y,
       cv=cv,
       scoring=scoring
     )
@@ -292,8 +297,8 @@ if __name__ == "__main__":
       best_param_ = best_params_[key]
       plot_validation_curve(
         model=model,
-        explanatory_variables_train=explanatory_variables_train,
-        labels_train=labels_train,
+        X=X,
+        y=y,
         param_name=key,
         param_range=value[0],
         param_scales=value[1],
