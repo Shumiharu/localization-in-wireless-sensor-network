@@ -5,6 +5,7 @@ import pandas as pd
 import yaml
 import joblib
 import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 import lightgbm as lgb
@@ -23,18 +24,14 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import validation_curve
 from sklearn.model_selection import learning_curve
 
-from feature import feature_extraction
-
 def can_use_matplotlib():
     try:
-        # Use a non-GUI backend
-        matplotlib.use('Agg')
-        plt.figure()
-        plt.plot([1, 2, 3], [1, 4, 9])
-        plt.close()
-        return True
+      plt.figure()
+      plt.plot([1, 2, 3], [1, 4, 9])
+      plt.close()
+      return True
     except:
-        return False
+      return False
 
 def plot_validation_curve(model, X, y, param_name, param_range, param_scales, cv, scoring, best_param_):
     

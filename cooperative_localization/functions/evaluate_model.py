@@ -56,10 +56,12 @@ if __name__ == "__main__":
   accuracy = accuracy_score(y_true=labels, y_pred=predicted)
   precision = precision_score(y_true=labels, y_pred=predicted)
   recall = recall_score(y_true=labels, y_pred=predicted)
+  f1_score = (2*recall*precision)/(recall + precision)
 
   print(f"accuracy_score: {accuracy}")
   print(f"precision_score: {precision}")
   print(f"recall_score: {recall}")
+  print(f"f1_score: {f1_score}")
 
   if is_subprocess:
     output_dirpath = args[1]
@@ -68,7 +70,8 @@ if __name__ == "__main__":
       "model_filepath": [model_filepath],
       "accuracy_score": [accuracy],
       "precision_score": [precision],
-      "recall_score": [recall]
+      "recall_score": [recall],
+      "f1_score": [f1_score]
     })
     score_data_filepath = os.path.join(output_dirpath, 'model_score.csv')
     score_data.to_csv(score_data_filepath, index=False)
