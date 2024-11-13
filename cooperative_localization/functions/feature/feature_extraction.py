@@ -1,3 +1,5 @@
+import ast
+import inspect
 import numpy as np
 
 from feature import convex_hull_volume
@@ -9,18 +11,37 @@ from feature import residual_avg
 
 def calculate(sensors_available, distances_estimated, target_estimated, field_range):
 
-    feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-    # feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-    # feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
-    feature_distance_squaerd_from_sensors_linear_regression_to_target = distance_squared_from_sensors_linear_regression_to_target.calculate(sensors_available, target_estimated)
-    # feature_mse_sensors_linear_regression = mse_sensors_linear_regression.calculate(sensors_available)
-    feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
-    
-    
     return np.array([
-        feature_convex_hull_volume,
-        # feature_distance_from_center_of_field_to_target,
-        # feature_distance_from_sensors_to_approximate_line,
-        feature_distance_squaerd_from_sensors_linear_regression_to_target,
-        feature_residual_avg,
+        convex_hull_volume.calculate(sensors_available),
+        # distance_from_center_of_field_to_target.calculate(field_range, target_estimated),
+        # distance_from_sensors_to_approximate_line.calculate(sensors_available),
+        distance_squared_from_sensors_linear_regression_to_target.calculate(sensors_available, target_estimated),
+        # mse_sensors_linear_regression.calculate(sensors_available),
+        residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
     ])
+
+# 特徴量の数を返す
+def count() -> int:
+    sensors_available =  np.array([[10.0, 10.0, 1.0], [20.0, 10.0, 1.0], [10.0, 20.0, 1.0], [20.0, 20.0, 1.0]])
+    distances_estimated = np.array([7.071, 7.071, 7.071, 7.071])
+    target_estimated = np.array([15., 15., 0.0])
+    field_range = {
+        "x_top": 30.0,
+        "x_bottom": 0.0,
+        "y_top": 30.0,
+        "y_bottom": 0.0
+    }
+    features_count = len(calculate(sensors_available, distances_estimated, target_estimated, field_range)) + 1
+    return features_count
+
+# 現在有効な特徴量の名前をリストで取得
+def get_features_name() -> list:
+    feature_names = []
+    code_calculate = inspect.getsource(calculate)
+    tree = ast.parse(code_calculate)
+    for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                if isinstance(node.value, ast.Name) and node.value.id != 'np':
+                    feature_names.append(node.value.id)
+    return list(feature_names)
+

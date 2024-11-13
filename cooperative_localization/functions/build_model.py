@@ -133,6 +133,7 @@ if __name__ == "__main__":
   is_plot_curves = config["model"]["is_plot_curves"]
   if not can_use_matplotlib:
     is_plot_curves = False
+    print("\nWarn: This PC is only CUI. It cannot plot validation curve and learning curve.")
   
   model_subdirname = "successive" if is_built_successively else "collective"
   model_type = config["model"]["type"]
@@ -182,8 +183,7 @@ if __name__ == "__main__":
       'svc__kernel': (['rbf'], 'linear'),
       # 'svc__gamma': ([0.01, 0.1, 1], 'log')
     }
-    # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまう
-    # そのため，性能が一定のラインを超えなくなる
+    # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が一定のラインを超えなくなる
   
   # random forest
   if model_type == "rf":

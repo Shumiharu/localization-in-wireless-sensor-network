@@ -122,7 +122,7 @@ if __name__ == "__main__":
   # print(f"{fingerprint_filename} was loaded from {fingerprint_filepath}")
 
   # Feature 
-  features_list = np.empty((0, 5))
+  features_list = np.empty((0, feature_extraction.count()))
 
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
@@ -346,14 +346,18 @@ if __name__ == "__main__":
   
   print(f"RMSE: {root_mean_squared_error_avg} m")
 
-  features_data = pd.DataFrame({
-    "convex_hull_volume": features_list[:, 0], 
-    "distance_from_center_of_field_to_target": features_list[:, 1],
-    "distance_from_sensors_to_approximate_line": features_list[:, 2],
-    "residual_avg": features_list[:, 3],
-    "error": features_list[:, 4]
-  })
-
+  # features_data = pd.DataFrame({
+  #   "convex_hull_volume": features_list[:, 0], 
+  #   "distance_from_center_of_field_to_target": features_list[:, 1],
+  #   "distance_from_sensors_to_approximate_line": features_list[:, 2],
+  #   "residual_avg": features_list[:, 3],
+  #   "error": features_list[:, 4]
+  # })  
+  features_name = feature_extraction.get_features_name()
+  features_data = pd.DataFrame()
+  for i, feature_name in enumerate(features_name):
+    features_data[feature_name] = features_list[:, i]
+  features_data["error"] = features_list[:, -1]
   features_data.to_csv(sample_data_filepath, index=False)
   print(f"{sample_data_filename} was saved in {sample_data_filepath}")
 

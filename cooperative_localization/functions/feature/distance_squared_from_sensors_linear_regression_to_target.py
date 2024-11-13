@@ -9,7 +9,6 @@ def calculate(sensors_available: np.ndarray, target_estimated: np.ndarray) -> fl
 
     # 線形回帰の係数を計算 y = ax + b, a = slope, b = intercept
     slope, intercept = np.polyfit(sensors_x, sensors_y, 1)
-    print(f"linear regression: y = {slope}x + {intercept}")
 
     # target_estimated座標点との距離の二乗を計算
     target_estimated_x = target_estimated[0]
