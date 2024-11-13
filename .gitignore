@@ -31,6 +31,10 @@ cooperative_localization/models/collective/svm/**
 !cooperative_localization/models/collective/svm/**/
 !cooperative_localization/models/collective/svm/**/.gitkeep
 
+cooperative_localization/models/collective/xgb/**
+!cooperative_localization/models/collective/xgb/**/
+!cooperative_localization/models/collective/xgb/**/.gitkeep
+
 cooperative_localization/models/successive/lgb/**
 !cooperative_localization/models/successive/lgb/**/
 !cooperative_localization/models/successive/lgb/**/.gitkeep
@@ -46,6 +50,10 @@ cooperative_localization/models/successive/rf/**
 cooperative_localization/models/successive/svm/**
 !cooperative_localization/models/successive/svm/**/
 !cooperative_localization/models/successive/svm/**/.gitkeep
+
+cooperative_localization/models/successive/xgb/**
+!cooperative_localization/models/successive/xgb/**/
+!cooperative_localization/models/successive/xgb/**/.gitkeep
 
 cooperative_localization/sample_data/collective/**
 !cooperative_localization/sample_data/collective/**/

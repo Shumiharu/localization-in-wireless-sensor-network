@@ -18,9 +18,12 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
+from sklearn.inspection import permutation_importance
 
 from sklearn.model_selection import validation_curve
 from sklearn.model_selection import learning_curve
+
+from feature import feature_extraction
 
 def can_use_matplotlib():
     try:
@@ -131,7 +134,7 @@ if __name__ == "__main__":
   # Learning Model
   is_built_successively = config["model"]["is_built_successively"]
   is_plot_curves = config["model"]["is_plot_curves"]
-  if not can_use_matplotlib:
+  if not can_use_matplotlib():
     is_plot_curves = False
     print("\nWarn: This PC is only CUI. It cannot plot validation curve and learning curve.")
   
@@ -220,13 +223,13 @@ if __name__ == "__main__":
 
     param_config = {
       # 'lgbmclassifier__n_estimators': ([5,10,15], 'linear'),
-      'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.001, 0.01, 0.01, 0.03], 'log'), # best: 0.03
-      'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.001, 0.01, 0.03, 0.1], 'log'), # best: 0.01
-      'lgbmclassifier__num_leaves': ([2, 4], 'linear'), # best: 4
-      'lgbmclassifier__colsample_bytree': ([0.8, 0.9, 1.0], 'linear'), # best: 0.9
+      'lgbmclassifier__reg_alpha': ([0.03], 'log'), # best: 0.03
+      'lgbmclassifier__reg_lambda': ([0.01], 'log'), # best: 0.01
+      'lgbmclassifier__num_leaves': ([4], 'linear'), # best: 4
+      'lgbmclassifier__colsample_bytree': ([0.9], 'linear'), # best: 0.9
       # 'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'), # best: 0.2
       # 'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
-      'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'), # best: 1
+      'lgbmclassifier__min_child_samples': ([1], 'linear'), # best: 1
     } # 
 
   # xgboost （勾配ブースティング木）
@@ -291,8 +294,10 @@ if __name__ == "__main__":
 
   best_params_ = gridcv.best_params_
   best_score_ = gridcv.best_score_
-  print(f"gridcv.best_params_: {best_params_}")
-  print(f"gridcv.best_score_: {best_score_}")
+  print("\ngrid search results: ")
+  print(f"best_params_ {best_params_}")
+  print(f"best_score_  {best_score_}")
+  print("")
 
   if is_subprocess:
     output_dirpath = args[1]
@@ -309,6 +314,27 @@ if __name__ == "__main__":
 
   # 最適パラメータを用いてモデルを作成・保存
   model = gridcv.best_estimator_.fit(explanatory_variables_train, labels_train)
+
+  # 特徴量の重要度を取得
+  features_name = features_data.columns[:-1].to_list()
+  if model_type in ["svm", "nn"]:
+    result = permutation_importance(model, explanatory_variables_train, labels_train, n_repeats=10, random_state=42)
+    feature_importance = pd.Series(result.importances_mean, index=features_name)
+    print("\nfeature importance:")
+    print(feature_importance)
+  else:
+    if model_type == "rf":
+      model_ensambled = model.named_steps['randomforestclassifier']
+    if model_type == "lgb":
+      model_ensambled = model.named_steps['lgbmclassifier']
+    if model_type == "xgb":
+      model_ensambled = model.named_steps['xgbclassifier']
+
+    importances = model_ensambled.feature_importances_
+    feature_importance = pd.Series(importances, index=features_name)
+    print("\nfeature importance:")
+    print(feature_importance)
+  print("")
   
   if is_plot_curves:
     plot_learning_curve(

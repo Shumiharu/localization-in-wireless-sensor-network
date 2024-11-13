@@ -45,25 +45,25 @@ localization:
     threshold: 10**(-8)
 sample_data:
   is_example: false
-  filename: sample_data_0.csv # デバッグは"sample_data_dbg"を使う
+  filename: sample_data_2.csv # デバッグは"sample_data_dbg"を使う
   # filename: sample_data_yamamoto_2.csv
-  count: 1000
+  count: 10000
 fingerprint:
   is_example: true
   filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
   count: 10000
 model:
-  type: svm # svm / rf / lgb / nn / xgb
+  type: nn # svm / rf / lgb / nn / xgb
   # filename: model_yamamoto_2.pkl
   is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
-  is_plot_curves: true # モデル作成時に検証曲線及び学習曲線をプロットする
+  is_plot_curves: false # モデル作成時に検証曲線及び学習曲線をプロットする
   is_example: false # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
-  filename: model_n.pkl # デバッグは"model_dbg"を使う
+  filename: model_m.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
   is_example: false
-  filename: evaluation_data_0.csv # デバッグは"evaluation_data_dbg"を使う
+  filename: evaluation_data_2.csv # デバッグは"evaluation_data_dbg"を使う
   # filename: evaluation_data_yamamoto_2.csv
-  count: 1000
+  count: 10000
 sim_cycles: 100000

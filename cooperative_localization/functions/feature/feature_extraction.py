@@ -13,9 +13,9 @@ def calculate(sensors_available, distances_estimated, target_estimated, field_ra
 
     return np.array([
         convex_hull_volume.calculate(sensors_available),
-        # distance_from_center_of_field_to_target.calculate(field_range, target_estimated),
+        distance_from_center_of_field_to_target.calculate(field_range, target_estimated),
         # distance_from_sensors_to_approximate_line.calculate(sensors_available),
-        distance_squared_from_sensors_linear_regression_to_target.calculate(sensors_available, target_estimated),
+        # distance_squared_from_sensors_linear_regression_to_target.calculate(sensors_available, target_estimated),
         # mse_sensors_linear_regression.calculate(sensors_available),
         residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
     ])
