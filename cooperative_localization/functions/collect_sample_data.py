@@ -7,6 +7,8 @@ import yaml
 import joblib
 import pandas as pd
 from datetime import datetime
+import matplotlib
+import matplotlib.pyplot as plt
 
 # ランダムシードの設定
 # random.seed(42)
@@ -270,6 +272,16 @@ if __name__ == "__main__":
           if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
             features_list = np.append(features_list, [features], axis=0)
 
+          # if feature_error > 15.0 and features[1] < 50 and features[3] < 1:
+          #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+          #   plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+          #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+          #   plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+          #   plt.scatter(target_estimated[0], target_estimated[1], c="blue")
+          #   plt.scatter(target[0], target[1], c="red")
+          #   plt.show()
+          #   plt.close('all')
+          #   plt.clf()
 
           # 協調測位であれば測位したTNをSNに追加する（RNに変更する）
           if is_cooperative:

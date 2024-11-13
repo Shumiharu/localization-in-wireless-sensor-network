@@ -166,7 +166,6 @@ if __name__ == "__main__":
 
   # 交差検証（クロスバリデーション）の設定
   cv = KFold(n_splits=5, shuffle=True, random_state=42)
-  # cv = 5
 
   # 評価指標の設定
   scoring = "accuracy"
@@ -174,35 +173,61 @@ if __name__ == "__main__":
   # support vector machine
   if model_type == "svm":
     pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))
+    # param_config = {
+    #   'svc__C': (config["model"]["cost_parameter_range"], 'linear'),
+    #   'svc__kernel': (['rbf'], 'linear')
+    # }
     param_config = {
-      'svc__C': (config["model"]["cost_parameter_range"], 'linear'),
-      'svc__kernel': (['rbf'], 'linear')
+      'svc__C': ([10], 'log'),
+      'svc__kernel': (['rbf'], 'linear'),
+      # 'svc__gamma': ([0.01, 0.1, 1], 'log')
     }
+    # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまう
+    # そのため，性能が一定のラインを超えなくなる
   
   # random forest
   if model_type == "rf":
     pipe_line = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=0))
+    # param_config = {
+    #   'randomforestclassifier__n_estimators': ([50, 75, 100, 125], 'linear'), # 100
+    #   # 'randomforestclassifier__criterion': (["gini", "entropy"], 'linear'),
+    #   'randomforestclassifier__max_depth':([15, 20, 25], 'linear'), # 25
+    #   'randomforestclassifier__min_samples_split': ([10, 12, 14], 'linear'), # 12
+    #   # 'randomforestclassifier__max_leaf_nodes': ([None, 10, 30], 'linear'),
+    # }
+
+    # チューニング後
     param_config = {
-      'randomforestclassifier__n_estimators': ([50, 75, 100, 125], 'linear'), # 100
-      # 'randomforestclassifier__criterion': (["gini", "entropy"], 'linear'),
-      'randomforestclassifier__max_depth':([15, 20, 25], 'linear'), # 25
-      'randomforestclassifier__min_samples_split': ([10, 12, 14], 'linear'), # 12
-      # 'randomforestclassifier__max_leaf_nodes': ([None, 10, 30], 'linear'),
-    }
-  
+      'randomforestclassifier__n_estimators': ([100], 'linear'), # 100
+      'randomforestclassifier__max_features': ([1], 'linear'), # 1
+      'randomforestclassifier__max_depth':([6], 'linear'), # 6
+      'randomforestclassifier__min_samples_split': ([5], 'linear'), # 5
+    } # 0.8550666666666666 過学習を起こさない最大値
+   
   # light gbm （勾配ブースティング木）
   if model_type == "lgb":
     pipe_line = make_pipeline(StandardScaler(), lgb.LGBMClassifier(random_state=0))
+    # param_config = {
+    #   # 'lgbmclassifier__n_estimators': ([5,10,15], 'linear'),
+    #   'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'), # best: 0.01
+    #   'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'), # best: 0.0003
+    #   'lgbmclassifier__num_leaves': ([2, 4, 8, 16, 32], 'linear'), # best: 16
+    #   'lgbmclassifier__colsample_bytree': ([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'linear'), # best: 0.7
+    #   'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'), # best: 0.2
+    #   # 'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
+    #   'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'), # best: 2
+    # }
+
     param_config = {
       # 'lgbmclassifier__n_estimators': ([5,10,15], 'linear'),
-      'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'),
-      'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1], 'log'),
-      'lgbmclassifier__num_leaves': ([2, 4, 8, 16, 32], 'linear'),
-      'lgbmclassifier__colsample_bytree': ([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'linear'),
-      'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'),
+      'lgbmclassifier__reg_alpha': ([0, 0.0001, 0.001, 0.01, 0.01, 0.03], 'log'), # best: 0.03
+      'lgbmclassifier__reg_lambda': ([0, 0.0001, 0.001, 0.01, 0.03, 0.1], 'log'), # best: 0.01
+      'lgbmclassifier__num_leaves': ([2, 4], 'linear'), # best: 4
+      'lgbmclassifier__colsample_bytree': ([0.8, 0.9, 1.0], 'linear'), # best: 0.9
+      # 'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'), # best: 0.2
       # 'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
-      'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'),
-    }
+      'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'), # best: 1
+    } # 
 
   # xgboost （勾配ブースティング木）
   if model_type == "xgb":
