@@ -178,10 +178,11 @@ if __name__ == "__main__":
     #   'svc__C': (config["model"]["cost_parameter_range"], 'linear'),
     #   'svc__kernel': (['rbf'], 'linear')
     # }
+
+    # チューニング後
     param_config = {
-      'svc__C': ([10], 'log'),
-      'svc__kernel': (['rbf'], 'linear'),
-      'svc__gamma': ([0.01], 'log')
+      'svc__C': ([5], 'log'),
+      'svc__kernel': (['rbf'], 'linear')
     }
     # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が劣化する
   
@@ -218,33 +219,41 @@ if __name__ == "__main__":
     #   'lgbmclassifier__min_child_samples': ([0, 1, 2], 'linear'), # best: 2
     # }
 
+    # チューニング後
     param_config = {
-      # 'lgbmclassifier__n_estimators': ([5,10,15], 'linear'),
       'lgbmclassifier__reg_alpha': ([0.03], 'log'), # best: 0.03
       'lgbmclassifier__reg_lambda': ([0.01], 'log'), # best: 0.01
-      'lgbmclassifier__num_leaves': ([4], 'linear'), # best: 4
+      'lgbmclassifier__num_leaves': ([2], 'linear'), # best: 2
       'lgbmclassifier__colsample_bytree': ([0.9], 'linear'), # best: 0.9
-      # 'lgbmclassifier__subsample': ([0.2, 0.4, 0.6, 0.8, 1.0], 'linear'), # best: 0.2
-      # 'lgbmclassifier__subsample_freq': ([0, 1, 2, 3, 4, 5, 6, 7], 'linear'),
       'lgbmclassifier__min_child_samples': ([1], 'linear'), # best: 1
     } # 
 
   # xgboost （勾配ブースティング木）
   if model_type == "xgb":
     pipe_line = make_pipeline(StandardScaler(), xgb.XGBClassifier(random_state=0))
+    # param_config = {
+    #   'xgbclassifier__n_estimators': ([50, 70, 90, 100, 110, 120], 'linear'), # 100
+    #   'xgbclassifier__colsample_bytree': ([1.0], 'linear'),
+    #   'xgbclassifier__gamma': ([1], 'log'),
+    #   'xgbclassifier__learning_rate': ([0.1], 'log'),
+    #   'xgbclassifier__max_depth': ([4], 'linear'),
+    #   'xgbclassifier__min_child_weight': ([5], 'linear'),
+    #   'xgbclassifier__subsample': ([0.4], 'linear'),
+    # }
+
+    # チューニング後
     param_config = {
-      'xgbclassifier__n_estimators': ([50, 70, 90, 100, 110, 120], 'linear'), # 100
-      'xgbclassifier__colsample_bytree': ([1.0], 'linear'),
       'xgbclassifier__gamma': ([1], 'log'),
-      'xgbclassifier__learning_rate': ([0.1], 'log'),
-      'xgbclassifier__max_depth': ([4], 'linear'),
-      'xgbclassifier__min_child_weight': ([5], 'linear'),
-      'xgbclassifier__subsample': ([0.4], 'linear'),
+      'xgbclassifier__learning_rate': ([0.01], 'log'),
+      'xgbclassifier__max_depth': ([2], 'linear'),
+      'xgbclassifier__min_child_weight': ([60], 'linear'),
     }
 
   # neural network
   if model_type == "nn":
     pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0, max_iter=500, early_stopping=True))
+    
+    # チューニング後
     param_config = {
       'mlpclassifier__learning_rate_init': ([0.005], 'log') # 0.01 か 0.005くらい
     }
@@ -313,25 +322,25 @@ if __name__ == "__main__":
   model = gridcv.best_estimator_.fit(explanatory_variables_train, labels_train)
 
   # 特徴量の重要度を取得
-  features_name = features_data.columns[:-1].to_list()
-  if model_type in ["svm", "nn"]:
-    result = permutation_importance(model, explanatory_variables_train, labels_train, n_repeats=10, random_state=42)
-    feature_importance = pd.Series(result.importances_mean, index=features_name)
-    print("\nfeature importance:")
-    print(feature_importance)
-  else:
-    if model_type == "rf":
-      model_ensambled = model.named_steps['randomforestclassifier']
-    if model_type == "lgb":
-      model_ensambled = model.named_steps['lgbmclassifier']
-    if model_type == "xgb":
-      model_ensambled = model.named_steps['xgbclassifier']
+  # features_name = features_data.columns[:-1].to_list()
+  # if model_type in ["svm", "nn"]:
+  #   result = permutation_importance(model, explanatory_variables_train, labels_train, n_repeats=10, random_state=42)
+  #   feature_importance = pd.Series(result.importances_mean, index=features_name)
+  #   print("\nfeature importance:")
+  #   print(feature_importance)
+  # else:
+  #   if model_type == "rf":
+  #     model_ensambled = model.named_steps['randomforestclassifier']
+  #   if model_type == "lgb":
+  #     model_ensambled = model.named_steps['lgbmclassifier']
+  #   if model_type == "xgb":
+  #     model_ensambled = model.named_steps['xgbclassifier']
 
-    importances = model_ensambled.feature_importances_
-    feature_importance = pd.Series(importances, index=features_name)
-    print("\nfeature importance:")
-    print(feature_importance)
-  print("")
+  #   importances = model_ensambled.feature_importances_
+  #   feature_importance = pd.Series(importances, index=features_name)
+  #   print("\nfeature importance:")
+  #   print(feature_importance)
+  # print("")
   
   if is_plot_curves:
     plot_learning_curve(
