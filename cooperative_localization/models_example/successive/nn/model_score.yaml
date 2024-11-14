@@ -1,0 +1,5 @@
+model_ex:
+  accuracy_score: 0.80435
+  precision_score: 0.7948842166456739
+  recall_score: 0.8204
+  f1_score: 0.8074405787116776
