@@ -181,9 +181,9 @@ if __name__ == "__main__":
     param_config = {
       'svc__C': ([10], 'log'),
       'svc__kernel': (['rbf'], 'linear'),
-      # 'svc__gamma': ([0.01, 0.1, 1], 'log')
+      'svc__gamma': ([0.01], 'log')
     }
-    # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が一定のラインを超えなくなる
+    # Cパラメータを大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が劣化する
   
   # random forest
   if model_type == "rf":
@@ -246,9 +246,9 @@ if __name__ == "__main__":
   if model_type == "nn":
     pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0, max_iter=500, early_stopping=True))
     param_config = {
-      'mlpclassifier__learning_rate_init': ([0.001, 0.005, 0.01], 'log')
+      'mlpclassifier__learning_rate_init': ([0.005], 'log') # 0.01 か 0.005くらい
     }
-    # param_grid = [{"mlpclassifier__learning_rate_init":[0.01,0.005,0.001]}]
+    # SVM同様に学習率を大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が劣化する
 
   param_grid = {key: value[0] for key, value in param_config.items()}
   param_scale = {key: value[1] for key, value in param_config.items()}
