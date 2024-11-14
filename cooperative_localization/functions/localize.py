@@ -50,7 +50,7 @@ if __name__ == "__main__":
   is_recursive: bool = config["localization"]["is_recursive"]
   is_sorted = config["localization"]["is_sorted"]
 
-  max_localization_loop: int = config["localization"]["max_loop"] # 最大測位回数
+  max_localization_loop: int = config["localization"]["max_loop"] # 最大測位回数（この回数が多いほど通信における再送回数が多くなる）
   max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 最大測距回数（この回数が多いほど通信における再送回数が多くなる）
 
   newton_raphson_max_loop: int = config["localization"]["newton_raphson"]["max_loop"] # Newton Raphson 計算回数の最大
