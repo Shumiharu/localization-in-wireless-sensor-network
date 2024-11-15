@@ -63,3 +63,5 @@ convex_hull_volume,distance_from_center_of_field_to_target,distance_to_approxima
 
 が見つかった．これを判別できるような特徴量がほしい
 ->共通点として，少なくともANのうちいずれかは測位に参加していないことがわかる
+
+測位回数の平均をとる -> その回数でLS法の協調なしで測距して結果を出す
