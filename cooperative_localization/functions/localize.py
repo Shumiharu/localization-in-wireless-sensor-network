@@ -314,12 +314,15 @@ if __name__ == "__main__":
             # 陽性判定
             is_positive = model.predict([features])
             if is_positive and is_recursive:
+              
+              # 再帰的処理のカウント初期化
+              recursive_count = 0 
 
-              recursive_count = 0
               targets_estimated_recursively = np.array([target_estimated])
               while len(distances_estimated_for_target_estimated) >= 3:
 
                 in_anchors = np.array([any(np.all(np.isclose(sensor_available_for_target_estimated, anchors), axis=1)) for sensor_available_for_target_estimated in sensors_available_for_target_estimated])
+                
                 # RNのインデックスを取得
                 mask_references = np.where(~in_anchors)[0]
                 if recursive_count == 0:
@@ -366,9 +369,12 @@ if __name__ == "__main__":
                 else:
                   break
 
+                # 再帰的処理のカウント
                 recursive_count += 1
-              
-              recursive_count_list = np.append(recursive_count_list, recursive_count)
+
+              # 再帰的処理を行った場合の処理回数の平均である点に注意
+              if recursive_count > 0:
+                recursive_count_list = np.append(recursive_count_list, recursive_count)
 
           if not is_predictive or not is_positive:
 
@@ -449,15 +455,19 @@ if __name__ == "__main__":
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
+    # 平均測位回数の算出
+    localization_attempt_count = np.maximum(targets_unlocalized_count - 1, 0) + 1
+    localization_attempt_count_avg_per_trial = np.mean(localization_attempt_count)
+
     # 平均測距回数の算出
-    distance_measurement = np.mean(targets_unlocalized_count + 1)*distance_measurement_max
+    distance_measurement_avg_per_trial = localization_attempt_count_avg_per_trial*distance_measurement_max
     if sim_cycle == 0:
-      distance_measurement_avg = distance_measurement
+      distance_measurement_avg = distance_measurement_avg_per_trial
     else:
-      distance_measurement_avg = (distance_measurement_avg*sim_cycle + distance_measurement)/(sim_cycle + 1)
+      distance_measurement_avg = (distance_measurement_avg*sim_cycle + distance_measurement_avg_per_trial)/(sim_cycle + 1)
 
     lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
-
+    
     if is_recursive:
       recursive_count_avg_per_trial = np.mean(recursive_count_list) if recursive_count_list.size > 0 else 0
       if sim_cycle == 0:
@@ -477,7 +487,11 @@ if __name__ == "__main__":
       print("\r Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg))
     print("\r/////////////////////////////////////////////////")
     print("\n{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done.")
-    
+
+  print("\n")
+  
+  print(f"RMSE: {root_mean_squared_error_avg} m")
+
   # 結果を出力
   result_data = pd.DataFrame({
     "Avg. RMSE per Trial": [root_mean_squared_error_avg],
@@ -540,7 +554,7 @@ if __name__ == "__main__":
   # order_to_root_mean_squared_error_data.to_csv(order_to_root_mean_squared_error_filepath, index=False)
   # print(f"{order_to_root_mean_squared_error_filename} was saved in {order_to_root_mean_squared_error_filepath}.")
 
-  print("\n\n\ncomplete.")
+  print("\ncomplete.")
 
 # anchor nodeによる測距
 # targets_estimated = np.empty((0,2))
