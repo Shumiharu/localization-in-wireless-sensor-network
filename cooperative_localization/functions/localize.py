@@ -429,7 +429,7 @@ if __name__ == "__main__":
     else:
       duration_localization_per_target_avg = (duration_localization_per_target_avg*sim_cycle + duration_localization_per_target)/(sim_cycle + 1)
 
-    # シミュレーション全体におけるMSE及びRMSEの算出
+    # 1試行回におけるTNのMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
     # squared_error_total += np.nansum(squared_error_list)
     targets_localized_count_total += len(targets_localized)
