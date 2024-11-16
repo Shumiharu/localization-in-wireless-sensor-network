@@ -51,7 +51,7 @@ if __name__ == "__main__":
   is_sorted = config["localization"]["is_sorted"]
 
   max_localization_loop: int = config["localization"]["max_loop"] # 最大測位回数（この回数が多いほど通信における再送回数が多くなる）
-  max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 最大測距回数（この回数が多いほど通信における再送回数が多くなる）
+  distance_measurement_max: int = config["localization"]["max_distance_measurement"] # 最大測距回数（この回数が多いほど通信における再送回数が多くなる）
 
   newton_raphson_max_loop: int = config["localization"]["newton_raphson"]["max_loop"] # Newton Raphson 計算回数の最大
   newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
@@ -145,7 +145,7 @@ if __name__ == "__main__":
       yaml.safe_dump(config, config_saved_file)
       print(f"{config_filename} was saved.")
   
-  print("", end="\n")
+  print("\n\n\n\n\n\n\n\n\n\n")
 
   # シミュレーション開始
   for sim_cycle in range(sim_cycles):
@@ -185,6 +185,9 @@ if __name__ == "__main__":
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
 
+    # 再帰的処理の回数のリスト
+    recursive_count_list = np.array([])
+
     # distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
     targets_unlocalized_count = np.zeros(len(targets))
@@ -216,7 +219,7 @@ if __name__ == "__main__":
       # 測距値の算出
       distances_measured_list = np.array([
         [
-          distance_toa.calculate(channel, max_distance_measurement, np.linalg.norm(target[:2] - sensor_original[:2]))[0] if index_target in mask_targets_unlocalized else np.nan
+          distance_toa.calculate(channel, distance_measurement_max, np.linalg.norm(target[:2] - sensor_original[:2]))[0] if index_target in mask_targets_unlocalized else np.nan
           for index_target, target in enumerate(targets)
         ]
         for sensor_original in sensors_original[mask_sensors_unmeasured]
@@ -364,6 +367,8 @@ if __name__ == "__main__":
                   break
 
                 recursive_count += 1
+              
+              recursive_count_list = np.append(recursive_count_list, recursive_count)
 
           if not is_predictive or not is_positive:
 
@@ -444,24 +449,41 @@ if __name__ == "__main__":
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
-    print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " / RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg) + " / Avg. Localization Duration per target: " + "{:.6f}".format(duration_localization_per_target_avg), end="")
-    
+    # 平均測距回数の算出
+    distance_measurement = np.mean(targets_unlocalized_count + 1)*distance_measurement_max
+    if sim_cycle == 0:
+      distance_measurement_avg = distance_measurement
+    else:
+      distance_measurement_avg = (distance_measurement_avg*sim_cycle + distance_measurement)/(sim_cycle + 1)
+
+    lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
+
     if is_recursive:
+      recursive_count_avg_per_trial = np.mean(recursive_count_list) if recursive_count_list.size > 0 else 0
       if sim_cycle == 0:
-        recursive_count_avg = recursive_count
+        recursive_count_avg = recursive_count_avg_per_trial
       else:
-        recursive_count_avg = (recursive_count_avg*sim_cycle + recursive_count)/(sim_cycle + 1)
-      print(" / Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg), end="")
+        recursive_count_avg = (recursive_count_avg*sim_cycle + recursive_count_avg_per_trial)/(sim_cycle + 1)
+      lines_back += "\033[F"
 
-  print("\n")
-  
-  print(f"RMSE: {root_mean_squared_error_avg} m")
-
+    # 結果を算出
+    print(lines_back, end="")
+    print("\r/////////////////////////////////////////////////")
+    print("\r Avg. RMSE per Trial: " + "{:.4f}".format(root_mean_squared_error_avg))
+    print("\r Avg. Localizable Probability: " + "{:.4f}".format(localizable_probability_avg))
+    print("\r Avg. Localization Duration per Target: " + "{:.6f}".format(duration_localization_per_target_avg))
+    print("\r Avg. Distance Measurement Count: " + "{:.4f}".format(distance_measurement_avg))
+    if is_recursive:
+      print("\r Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg))
+    print("\r/////////////////////////////////////////////////")
+    print("\n{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done.")
+    
   # 結果を出力
   result_data = pd.DataFrame({
-    "RMSE": [root_mean_squared_error_avg],
-    "Avg. Localization Prob.": [localizable_probability_avg],
-    "Avg. Localization Duration per target": [duration_localization_per_target_avg]
+    "Avg. RMSE per Trial": [root_mean_squared_error_avg],
+    "Avg. Localization Probability": [localizable_probability_avg],
+    "Avg. Localization Duration per Target": [duration_localization_per_target_avg],
+    "Avg. Distance Measurement Count": [distance_measurement_avg]
   })
   if is_recursive:
     result_data["Avg. Recursive Count"] = [recursive_count_avg]
@@ -518,7 +540,7 @@ if __name__ == "__main__":
   # order_to_root_mean_squared_error_data.to_csv(order_to_root_mean_squared_error_filepath, index=False)
   # print(f"{order_to_root_mean_squared_error_filename} was saved in {order_to_root_mean_squared_error_filepath}.")
 
-  print("\ncomplete.")
+  print("\n\n\ncomplete.")
 
 # anchor nodeによる測距
 # targets_estimated = np.empty((0,2))
@@ -528,7 +550,7 @@ if __name__ == "__main__":
 #   rx_power_list = np.array([])
 #   for anchor in anchors:
 #     distance_accurate = np.linalg.norm(target[:2] - anchor[:2])
-#     distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+#     distance_measured, rx_power = distance_toa.calculate(channel, distance_measurement_max, distance_accurate)
 #     distances_measured = np.append(distances_measured, distance_measured)
 #     rx_power_list = np.append(rx_power_list, rx_power)
 #   print(fingerprint_list[:, 2:])

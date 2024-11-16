@@ -53,12 +53,12 @@ fingerprint:
   filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
   count: 10000
 model:
-  type: svm # svm / rf / lgb / nn / xgb
+  type: nn # svm / rf / lgb / nn / xgb
   # filename: model_yamamoto_2.pkl
   is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
   is_plot_curves: false # モデル作成時に検証曲線及び学習曲線をプロットする（VSCodeのリモート機能などを使ってCUIのみで実行した場合，自動的にfalseになる）
-  is_example: false # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
-  filename: model_0.pkl # デバッグは"model_dbg"を使う
+  is_example: true # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
+  filename: model_ex.pkl # デバッグは"model_dbg"を使う
   error_threshold: 2.0
   cost_parameter_range: [0.1, 1.0, 10.0]
 evaluation_data:
