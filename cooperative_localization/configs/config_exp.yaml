@@ -1,0 +1,69 @@
+field_range:
+  x_top: 30.0
+  x_bottom: 0.0
+  y_top: 30.0
+  y_bottom: 0.0
+  grid_interval: 0.1
+channel:
+  tx_power: 15.0
+  path_loss_at_the_reference_distance: 41.33
+  path_loss_exponent: 1.96
+  shadowing:
+    mean: 0.0
+    standard_deviation: (10**(0.1*2.73))
+  los:
+    mean: 0.0
+    standard_deviation: 0.6
+    probability: 1.0
+  nlos:
+    mean: 1.62
+    standard_deviation: 0.809
+    probability: 
+  receiver_sensitivity_threshold: -48.0
+  distance_error: -.inf
+anchors:
+  - x: 10.0
+    y: 10.0
+  - x: 20.0
+    y: 10.0
+  - x: 10.0
+    y: 20.0
+  - x: 20.0
+    y: 20.0
+targets: 
+  count: 20
+localization:
+  # is_successive: false 逐次的に測位を行う(従来手法) 
+  is_sorted: true # is_successive: true の場合はANの中心から最も近い推定座標のみを測位 falseの場合はANの中心から近い順に測位
+  is_cooperative: false # 協調を行うか
+  is_predictive: false # モデルによる誤差予測
+  is_recursive: false # 再帰的に誤差予測を行う
+  max_loop: 7
+  max_distance_measurement: 2
+  newton_raphson:
+    max_loop: 10
+    threshold: 10**(-8)
+sample_data:
+  is_example: true
+  filename: sample_data_0.csv # デバッグは"sample_data_dbg"を使う
+  # filename: sample_data_yamamoto_2.csv
+  count: 10000
+fingerprint:
+  is_example: true
+  filename: fingerprint_0.csv # デバッグは"fingerprint_dbg"を使う
+  count: 10000
+model:
+  type: nn # svm / rf / lgb / nn / xgb
+  # filename: model_yamamoto_2.pkl
+  is_built_successively: true # 逐次的に測位されたサンプルを使ってモデルを作成するか（基本的に true の方が性能が良い）
+  is_plot_curves: false # モデル作成時に検証曲線及び学習曲線をプロットする（VSCodeのリモート機能などを使ってCUIのみで実行した場合，自動的にfalseになる）
+  is_example: true # trueにすると/models_exampleから参照する（is_predictiveが true になっていないと参照されないので注意）
+  filename: model_ex.pkl # デバッグは"model_dbg"を使う
+  error_threshold: 2.0
+  cost_parameter_range: [0.1, 1.0, 10.0]
+evaluation_data:
+  is_example: true
+  filename: evaluation_data_0.csv # デバッグは"evaluation_data_dbg"を使う
+  # filename: evaluation_data_yamamoto_2.csv
+  count: 10000
+sim_cycles: 100000
