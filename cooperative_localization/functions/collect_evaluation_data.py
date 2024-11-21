@@ -61,6 +61,7 @@ if __name__ == "__main__":
   # Learning Model
   error_threshold = config["model"]["error_threshold"]
   is_successive = config["model"]["is_built_successively"]
+  # is_successive = False
   print("'Collectively'\n" if not is_successive else "'Successively (Conventional Algorithm)'\n")
 
   # Evaluation

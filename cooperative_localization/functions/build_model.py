@@ -272,7 +272,7 @@ if __name__ == "__main__":
     
     # チューニング後
     param_config = {
-      'mlpclassifier__learning_rate_init': ([0.005], 'log') # 0.01 か 0.005くらい
+      'mlpclassifier__learning_rate_init': ([0.001], 'log') # 0.01 か 0.005くらい
     }
     # SVM同様に学習率を大きくしすぎると，事前学習のシステムの方に大きく適合してしまうため，性能が劣化する
 
