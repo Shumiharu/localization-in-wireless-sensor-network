@@ -129,6 +129,7 @@ if __name__ == "__main__":
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
   # squared_error_lists = np.empty((0,20))
+  error_list: np.ndarray = np.array([])
 
   # Make Folder and Save Config
   if is_subprocess:
@@ -191,6 +192,7 @@ if __name__ == "__main__":
     # distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
     targets_unlocalized_count = np.zeros(len(targets))
+    signal_transmission_count = 0
     # distances_measured_list_count = np.empty((0, len(targets)))
     index_targets_begin = 0
     is_initial_distances_measurement = True
@@ -211,6 +213,9 @@ if __name__ == "__main__":
       mask_targets_unlocalized = np.roll(mask_targets_unlocalized_original, -shift_targets_begin)
       mask_sensors_unmeasured = np.where(sensors[:, 2] == 0)[0]
 
+      # 測距を行ったSNの数の記録
+      signal_transmission_count += len(mask_sensors_unmeasured)*distance_measurement_max
+
       # print(f"mask_targets_unlocalized_original: {np.where(targets[:, 2] == 0)[0]}")
       # print(f"index_targets_begin: {index_targets_begin}")
       # print(f"shift_targets_begin: {shift_targets_begin}")
@@ -229,7 +234,7 @@ if __name__ == "__main__":
       if is_initial_distances_measurement: 
         distances_measured_list_avg = distances_measured_list
         distances_measured_list_count = np.where(np.isinf(distances_measured_list), 0, 1)
-        is_initial_distances_measurement = False
+        is_initial_distances_measurement = False # ここをコメントアウトすると，測距値は都度リセットされる
       else:
         distances_measured_list_avg, distances_measured_list_count = distances_avg.calculate(distances_measured_list_avg, distances_measured_list, distances_measured_list_count)
         
@@ -245,7 +250,7 @@ if __name__ == "__main__":
       
       for index_targets_unlocalized, distances_measured_avg_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_avg_transposed[mask_targets_unlocalized]):
         
-        # 最大測位回数を超えてなければ推定座標を算出
+        # 最大測位試行回数を超えてなければ推定座標を算出（実際は最初のPRS送信時に最大測位試行回数のデータを含めており，最大測位試行回数を超えたものは測距そのものをしていないと仮定する）
         if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
 
           mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_avg_for_targets_unlocalized)
@@ -450,24 +455,34 @@ if __name__ == "__main__":
 
     # 測位順と測位誤差のリスト
     # squared_error_lists = np.append(squared_error_lists, np.array([squared_error_list]), axis=0)
+    
+    # TNごとに測位誤差を記録（ただしデータが大きくなりすぎてしまうためサンプル数を制限）
+    if len(error_list) <= 10**5:
+      error_list = np.append(error_list, np.sqrt(squared_error_list))
 
     # 測位可能確率の分布の更新とその平均の算出
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
-    # 平均測位回数の算出
-    localization_attempt_count = np.maximum(targets_unlocalized_count - 1, 0) + 1
+
+    # 平均測距（した，PRSを送信した）回数の算出
+    if sim_cycle == 0:
+      signal_transmission_count_avg = signal_transmission_count
+    else:
+      signal_transmission_count_avg = (signal_transmission_count_avg*sim_cycle + signal_transmission_count)/(sim_cycle + 1)
+
+
+    # 平均測距（された）回数の算出
+    localization_attempt_count = np.where(targets_unlocalized_count == max_localization_loop, max_localization_loop - 1, targets_unlocalized_count) + 1
     localization_attempt_count_avg_per_trial = np.mean(localization_attempt_count)
 
-    # 平均測距回数の算出
     distance_measurement_avg_per_trial = localization_attempt_count_avg_per_trial*distance_measurement_max
     if sim_cycle == 0:
       distance_measurement_avg = distance_measurement_avg_per_trial
     else:
       distance_measurement_avg = (distance_measurement_avg*sim_cycle + distance_measurement_avg_per_trial)/(sim_cycle + 1)
 
-    lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
-    
+    lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
     if is_recursive:
       recursive_count_avg_per_trial = np.mean(recursive_count_list) if recursive_count_list.size > 0 else 0
       if sim_cycle == 0:
@@ -483,6 +498,7 @@ if __name__ == "__main__":
     print("\r Avg. Localizable Probability: " + "{:.4f}".format(localizable_probability_avg))
     print("\r Avg. Localization Duration per Target: " + "{:.6f}".format(duration_localization_per_target_avg))
     print("\r Avg. Distance Measurement Count: " + "{:.4f}".format(distance_measurement_avg))
+    print("\r Avg. PRS Transmission Count: " + "{:.4f}".format(signal_transmission_count_avg))
     if is_recursive:
       print("\r Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg))
     print("\r/////////////////////////////////////////////////")
@@ -497,7 +513,8 @@ if __name__ == "__main__":
     "Avg. RMSE per Trial": [root_mean_squared_error_avg],
     "Avg. Localization Probability": [localizable_probability_avg],
     "Avg. Localization Duration per Target": [duration_localization_per_target_avg],
-    "Avg. Distance Measurement Count": [distance_measurement_avg]
+    "Avg. Distance Measurement Count": [distance_measurement_avg],
+    "PRS Transmission Count": [signal_transmission_count_avg]
   })
   if is_recursive:
     result_data["Avg. Recursive Count"] = [recursive_count_avg]
@@ -529,6 +546,18 @@ if __name__ == "__main__":
   # field_rmse_distribution_filepath = os.path.join(output_dirpath, field_rmse_distribution_filename)
   # field_rmse_distribution_data.to_csv(field_rmse_distribution_filepath, index=False)
   # print(f"{field_rmse_distribution_filename} was saved in {field_rmse_distribution_filepath}.")
+
+  # 測位誤差の累積分布関数を出力
+  error_list_sorted = np.sort(error_list)
+  cumulative_distribution_function_error = np.cumsum(error_list_sorted)/np.sum(error_list_sorted)
+  cumulative_distribution_function_error_data = pd.DataFrame({
+    "error": error_list_sorted,
+    "CDF": cumulative_distribution_function_error
+  })
+  cumulative_distribution_function_error_filename = "cdf_error.csv"
+  cumulative_distribution_function_error_filepath = os.path.join(output_dirpath, cumulative_distribution_function_error_filename)
+  cumulative_distribution_function_error_data.to_csv(cumulative_distribution_function_error_filepath, index=False)
+  print(f"{cumulative_distribution_function_error_filename} was saved in {cumulative_distribution_function_error_filepath}.")
 
   # 測位可能確率の分布を出力
   field_localizable_probability_distribution_data = pd.DataFrame({

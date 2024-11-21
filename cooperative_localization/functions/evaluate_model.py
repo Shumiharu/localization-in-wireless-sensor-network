@@ -39,7 +39,8 @@ if __name__ == "__main__":
 
   # Read Evaluation Data File
   is_evaluation_data_example = config["evaluation_data"]["is_example"]
-  evaluation_data_subdirname = model_subdirname
+  is_successive = config["evaluation_data"]["is_successive"] 
+  evaluation_data_subdirname = "successive" if is_successive else "collective"
   evaluation_data_filename = config["evaluation_data"]["filename"]
   evaluation_data_filepath = f"../evaluation_data/{evaluation_data_subdirname}/{evaluation_data_filename}"
   if is_evaluation_data_example:
