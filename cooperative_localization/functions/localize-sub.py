@@ -382,7 +382,11 @@ if __name__ == "__main__":
                 # 誤差が小さいとされる場合は終了
                 is_positive = model.predict([features_recursively])
                 
+<<<<<<< HEAD
                 is_positive_probable = is_positive/8
+=======
+                is_positive_probable = is_positive/4
+>>>>>>> b468f09742794a1abafa8dbb4e97d8df492a5900
                 if is_positive_probable == 0:
                   is_positive = random.choices([0,1],weights=[is_positive_probable,(1.0-is_positive_probable)],k=1)            
                 else:

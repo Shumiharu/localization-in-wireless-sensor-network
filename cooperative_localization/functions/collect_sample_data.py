@@ -135,7 +135,11 @@ if __name__ == "__main__":
   print("", end="\n")
   # シミュレーション開始
   if is_division:
+<<<<<<< HEAD
     while np.sum(features_list[:, -1] >= error_threshold) < sample_data_count or np.sum((features_list[:, -1] < error_threshold) & (features_list[:, -1] >= (error_threshold - error_threshold_grid))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*2))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*2)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*3))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*3)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*4))) < sample_data_count :#or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*5))) < sample_data_count :
+=======
+    while np.sum(features_list[:, -1] >= error_threshold) < sample_data_count or np.sum((features_list[:, -1] < error_threshold) & (features_list[:, -1] >= (error_threshold - error_threshold_grid))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*2))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*2)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*3))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*3)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*4))) < sample_data_count or np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*5))) < sample_data_count :
+>>>>>>> b468f09742794a1abafa8dbb4e97d8df492a5900
       # sensor は anchor と reference で構成
       sensors_original = np.copy(anchors) # 実際の座標
       sensors = np.copy(sensors_original) # anchor以外は推定座標
@@ -284,9 +288,15 @@ if __name__ == "__main__":
             # RMSEが0.4以上0.8未満の場合
             if feature_error < (error_threshold -error_threshold_grid*3) and feature_error >= (error_threshold -error_threshold_grid*4) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*3)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*4))) < sample_data_count:            
               features_list = np.append(features_list, [features], axis=0)
+<<<<<<< HEAD
             # # RMSEが0以上0.4未満の場合
             # if feature_error < (error_threshold -error_threshold_grid*4) and feature_error >= (error_threshold -error_threshold_grid*5) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*5))) < sample_data_count:            
             #   features_list = np.append(features_list, [features], axis=0)
+=======
+            # RMSEが0以上0.4未満の場合
+            if feature_error < (error_threshold -error_threshold_grid*4) and feature_error >= (error_threshold -error_threshold_grid*5) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*5))) < sample_data_count:            
+              features_list = np.append(features_list, [features], axis=0)
+>>>>>>> b468f09742794a1abafa8dbb4e97d8df492a5900
 
             # if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
             #   features_list = np.append(features_list, [features], axis=0)
@@ -367,6 +377,8 @@ if __name__ == "__main__":
             
   else:  
     while np.sum(features_list[:, -1] >= error_threshold) < sample_data_count or np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
+<<<<<<< HEAD
+=======
     
     
       # sensor は anchor と reference で構成
@@ -378,6 +390,212 @@ if __name__ == "__main__":
       rng = np.random.default_rng()
       rng.shuffle(targets, axis=0)
 
+      # 平方根誤差のリスト
+      squared_error_list = np.array([])
+      # squared_error_list = np.array([np.nan]*targets_count)
+
+      distances_measured_list = np.empty((0, len(targets)))
+      targets_localized = np.empty((0, 3))
+      targets_unlocalized_count = np.zeros(len(targets))
+      index_targets_begin = 0
+
+      # 測位開始時間を取得
+      # time_localization_start = time.time()
+
+      is_localizable = True
+      while is_localizable:
+
+        # 測距値のリセット
+        # if is_successive:
+        #   distances_measured_list = np.empty((0, len(targets)))
+
+        # 測距フェーズ
+        mask_targets_unlocalized_original = np.where(targets[:, 2] == 0)[0]
+        shift_targets_begin = np.argmax(mask_targets_unlocalized_original >= index_targets_begin)
+        mask_targets_unlocalized = np.roll(mask_targets_unlocalized_original, -shift_targets_begin)
+        mask_sensors_unmeasured = np.where(sensors[:, 2] == 0)[0]
+
+        # print(f"mask_targets_unlocalized_original: {np.where(targets[:, 2] == 0)[0]}")
+        # print(f"index_targets_begin: {index_targets_begin}")
+        # print(f"shift_targets_begin: {shift_targets_begin}")
+        # print(f"mask_targets_unlocalized: {mask_targets_unlocalized}")
+
+        distances_measured_list = np.array([
+          [
+            distance_toa.calculate(channel, max_distance_measurement, np.linalg.norm(target[:2] - sensor_original[:2]))[0] if index_target in mask_targets_unlocalized else np.nan
+            for index_target, target in enumerate(targets)
+          ]
+          for sensor_original in sensors_original[mask_sensors_unmeasured]
+        ])
+          
+        # 測距フラグの更新
+        # if not is_successive:
+        #   sensors[mask_sensors_unmeasured, 2] = 1
+
+        # 一時測位フェーズ
+        targets_estimated_initial = np.empty((0, 2))
+        mask_targets_estimated_initial = np.array([], dtype="int")
+        distances_measured_list_transposed = distances_measured_list.T
+        for index_targets_unlocalized, distances_measured_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_transposed[mask_targets_unlocalized]):
+          
+          # 最大測位回数を超えてなければ推定座標を算出
+          if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
+
+            mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_for_targets_unlocalized)
+            distances_estimated_for_targets_unlocalized = distances_measured_for_targets_unlocalized[mask_distance_measurable_for_targets_unlocalized]
+            sensors_available_for_targets_unlocalized = sensors[mask_distance_measurable_for_targets_unlocalized]
+            if len(distances_estimated_for_targets_unlocalized) >= 3:
+
+              target_estimated_initial = target_coordinates.calculate(
+                sensors_available_for_targets_unlocalized,
+                distances_estimated_for_targets_unlocalized,
+                newton_raphson_max_loop,
+                newton_raphson_threshold,
+                field_range
+              )
+
+              if not np.any(np.isnan(target_estimated_initial)):
+                targets_estimated_initial = np.append(targets_estimated_initial, [target_estimated_initial], axis=0)
+                mask_targets_estimated_initial = np.append(mask_targets_estimated_initial, index_targets_unlocalized)
+                if is_successive:
+                  break
+              # else:
+              #   targets_unlocalized_count[index_targets_unlocalized] += 1
+
+            else:
+              # 一時測位できない場合は加算
+              targets_unlocalized_count[index_targets_unlocalized] += 1
+        
+        # 座標決定フェーズ
+        if len(targets_estimated_initial) > 0:
+          
+          # 測位した順番に座標を決定（デフォルト）
+          mask_sorted = np.arange(len(targets_estimated_initial))
+
+          # if is_sorted:
+          #   # ANの中心に近い方から座標を順に決定
+          #   mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
+          #   # mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))[:1]
+
+          targets_estimated = targets_estimated_initial[mask_sorted]
+          mask_targets_estimated = mask_targets_estimated_initial[mask_sorted]
+          for index_targets_estimated, target_estimated in zip(mask_targets_estimated, targets_estimated):
+            
+            # 実際の座標を取得
+            target = targets[index_targets_estimated]
+            # print(f"target: {target}")
+
+            distances_measured_for_target_estimated = distances_measured_list_transposed[index_targets_estimated]
+            mask_distance_measurable_for_target_estimated = ~np.isinf(distances_measured_for_target_estimated)
+
+            distances_estimated_for_target_estimated = distances_measured_for_target_estimated[mask_distance_measurable_for_target_estimated]
+            sensors_available_for_target_estimated = sensors[:len(mask_distance_measurable_for_target_estimated)][mask_distance_measurable_for_target_estimated]
+            sensors_available_for_target_estimated_orignal = np.copy(sensors_available_for_target_estimated)
+              
+            # 特徴量の算出
+            features = feature_extraction.calculate(
+              sensors_available_for_target_estimated,
+              distances_estimated_for_target_estimated,
+              target_estimated,
+              field_range
+            )
+            # print(f"features: {features}")
+
+            # 推定座標の確定
+            target_localized = np.append(target_estimated, 0)
+            targets_localized = np.append(targets_localized, [target_localized], axis=0)
+            # print(f"target_localized[{index_targets_estimated}]: {target_localized}\n")
+
+            # 二乗誤差の算出
+            squared_error = distance_error_squared.calculate(target, target_localized)
+            squared_error_list = np.append(squared_error_list, squared_error)
+
+            # 誤差の特徴量はfeaturesの配列の一番最後に
+            feature_error = np.sqrt(squared_error)
+            features = np.append(features, feature_error)
+
+            # # RMSEが2.0以上の場合
+            # if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+            #   features_list = np.append(features_list, [features], axis=0)          
+            # # RMSEが1.6以上2.0未満の場合
+            # if feature_error < error_threshold and feature_error >= (error_threshold -error_threshold_grid) and np.sum((features_list[:, -1] < error_threshold) & (features_list[:, -1] >= (error_threshold - error_threshold_grid))) < sample_data_count:
+            #   features_list = np.append(features_list, [features], axis=0)
+            # # RMSEが1.2以上1.6未満の場合
+            # if feature_error < (error_threshold -error_threshold_grid) and feature_error >= (error_threshold -error_threshold_grid*2) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*2))) < sample_data_count:
+            #   features_list = np.append(features_list, [features], axis=0)
+            # # RMSEが0.8以上1.2未満の場合
+            # if feature_error < (error_threshold -error_threshold_grid*2) and feature_error >= (error_threshold -error_threshold_grid*3) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*2)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*3))) < sample_data_count:            
+            #   features_list = np.append(features_list, [features], axis=0)
+            # # RMSEが0.4以上0.8未満の場合
+            # if feature_error < (error_threshold -error_threshold_grid*3) and feature_error >= (error_threshold -error_threshold_grid*4) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*3)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*4))) < sample_data_count:            
+            #   features_list = np.append(features_list, [features], axis=0)
+            # # RMSEが0以上0.4未満の場合
+            # if feature_error < (error_threshold -error_threshold_grid*4) and feature_error >= (error_threshold -error_threshold_grid*5) and np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] >= (error_threshold - error_threshold_grid*5))) < sample_data_count:            
+            #   features_list = np.append(features_list, [features], axis=0)
+
+            if feature_error >= error_threshold and np.sum(features_list[:, -1] >= error_threshold) < sample_data_count:
+              features_list = np.append(features_list, [features], axis=0)
+            if feature_error < error_threshold and np.sum(features_list[:, -1] < error_threshold) < sample_data_count:
+              features_list = np.append(features_list, [features], axis=0)
+
+
+            # if feature_error > 15.0 and features[1] < 50 and features[3] < 1:
+            #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+            #   plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+            #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+            #   plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+            #   plt.scatter(target_estimated[0], target_estimated[1], c="blue")
+            #   plt.scatter(target[0], target[1], c="red")
+            #   plt.show()
+            #   plt.close('all')
+            #   plt.clf()
+
+            # 協調測位であれば測位したTNをSNに追加する（RNに変更する）
+            if is_cooperative:
+              sensors_original = np.append(sensors_original, [target], axis=0)
+              sensors = np.append(sensors, [target_localized], axis=0)
+
+            # 測位フラグの更新
+            targets[index_targets_estimated, 2] = 1
+
+          if is_successive:
+            index_targets_begin = np.max(mask_targets_estimated) + 1
+
+        is_localizable = np.any(targets_unlocalized_count[mask_targets_unlocalized] < max_localization_loop)
+        # if not is_localizable:
+          # print(f"\ntargets:\n {targets}")
+          # print(f"unlocalized count:\n{targets_unlocalized_count}")
+
+        if len(targets_localized) == targets_count:
+          break
+
+    # 測位時間の算出
+    # time_localization_end = time.time()
+    # duration_localization_per_target = (time_localization_end - time_localization_start)/len(targets_localized)
+    # if sim_cycle == 0:
+    #   duration_localization_per_target_avg = duration_localization_per_target
+    # else:
+    #   duration_localization_per_target_avg = (duration_localization_per_target_avg*sim_cycle + duration_localization_per_target)/(sim_cycle + 1)
+
+    # シミュレーション全体におけるMSE及びRMSEの算出
+    squared_error_total += np.sum(squared_error_list)
+    # squared_error_total += np.nansum(squared_error_list)
+    targets_localized_count_total += len(targets_localized)
+    mean_squared_error = squared_error_total/targets_localized_count_total
+    root_mean_squared_error = np.sqrt(mean_squared_error)
+>>>>>>> b468f09742794a1abafa8dbb4e97d8df492a5900
+    
+    
+      # sensor は anchor と reference で構成
+      sensors_original = np.copy(anchors) # 実際の座標
+      sensors = np.copy(sensors_original) # anchor以外は推定座標
+
+      # ターゲット
+      targets[:, 2] = 0.0
+      rng = np.random.default_rng()
+      rng.shuffle(targets, axis=0)
+
+<<<<<<< HEAD
       # 平方根誤差のリスト
       squared_error_list = np.array([])
       # squared_error_list = np.array([np.nan]*targets_count)
@@ -605,6 +823,26 @@ if __name__ == "__main__":
       # print(f"positive: {positive}/{sample_data_count} negative_w5: {negative_weight5}/{sample_data_count} negative_w4: {negative_weight4}/{sample_data_count} negative_w3: {negative_weight3}/{sample_data_count} negative_w2: {negative_weight2}/{sample_data_count} negative_w1: {negative_weight1}/{sample_data_count}", end=" ")
       print(f"positive: {positive}/{sample_data_count} negative: {negative}/{sample_data_count}", end=" ")
       print("RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
+=======
+    # 測位可能確率の分布の更新とその平均の算出
+    field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
+    localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
+    
+    sim_cycle += 1
+    # positive = np.sum(features_list[:, -1] >= error_threshold)
+    # negative_weight5 = np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*4)) & (features_list[:, -1] > (error_threshold - error_threshold_grid*5)))
+    # negative_weight4 = np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*3)) & (features_list[:, -1] > (error_threshold - error_threshold_grid*4)))
+    # negative_weight3 = np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*2)) & (features_list[:, -1] > (error_threshold - error_threshold_grid*3)))
+    # negative_weight2 = np.sum((features_list[:, -1] < (error_threshold - error_threshold_grid*1)) & (features_list[:, -1] > (error_threshold - error_threshold_grid*2)))
+    # negative_weight1 = np.sum((features_list[:, -1] < (error_threshold )) & (features_list[:, -1] > (error_threshold - error_threshold_grid*1)))
+
+    positive = np.sum(features_list[:, -1] >= error_threshold)
+    negative = np.sum(features_list[:, -1] < error_threshold)  
+    #   
+    # print(f"positive: {positive}/{sample_data_count} negative_w5: {negative_weight5}/{sample_data_count} negative_w4: {negative_weight4}/{sample_data_count} negative_w3: {negative_weight3}/{sample_data_count} negative_w2: {negative_weight2}/{sample_data_count} negative_w1: {negative_weight1}/{sample_data_count}", end=" ")
+    print(f"positive: {positive}/{sample_data_count} negative: {negative}/{sample_data_count}", end=" ")
+    print("RMSE: " + "{:.4f}".format(root_mean_squared_error_avg) + " / Avg. Localizable Prob.: " + "{:.4f}".format(localizable_probability_avg), end="\r\r")
+>>>>>>> b468f09742794a1abafa8dbb4e97d8df492a5900
 
   print("\n")
   
