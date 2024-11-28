@@ -130,6 +130,7 @@ if __name__ == "__main__":
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
   # squared_error_lists = np.empty((0,20))
   error_list: np.ndarray = np.array([])
+  sim_cycle_in_recursion = 0 # 再起的処理を1度でも行ったシミュレーション回数
 
   # Make Folder and Save Config
   if is_subprocess:
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     # squared_error_list = np.array([np.nan]*targets_count)
 
     # 再帰的処理の回数のリスト
-    recursive_count_list = np.array([])
+    recursion_depth_list = np.array([])
 
     # distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
@@ -321,7 +322,7 @@ if __name__ == "__main__":
             if is_positive and is_recursive:
               
               # 再帰的処理のカウント初期化
-              recursive_count = 0 
+              recursion_depth = 0 
 
               targets_estimated_recursively = np.array([target_estimated])
               while len(distances_estimated_for_target_estimated) >= 3:
@@ -330,12 +331,13 @@ if __name__ == "__main__":
                 
                 # RNのインデックスを取得
                 mask_references = np.where(~in_anchors)[0]
-                if recursive_count == 0:
-                  recursive_count_max = np.sum(~in_anchors)
+                if recursion_depth == 0:
+                  recursion_depth_max = np.sum(~in_anchors)
+                  sim_cycle_in_recursion += 1
 
                 is_recursion_available = len(distances_estimated_for_target_estimated) > 3 and len(distances_estimated_for_target_estimated[~in_anchors]) > 0
                 if not is_recursion_available:
-                  if recursive_count == recursive_count_max > 0:
+                  if recursion_depth == recursion_depth_max > 0:
                     is_positive = False
                     target_estimated = np.mean(targets_estimated_recursively, axis=0)
                   break
@@ -375,11 +377,11 @@ if __name__ == "__main__":
                   break
 
                 # 再帰的処理のカウント
-                recursive_count += 1
+                recursion_depth += 1
 
               # 再帰的処理を行った場合の処理回数の平均である点に注意
-              if recursive_count > 0:
-                recursive_count_list = np.append(recursive_count_list, recursive_count)
+              if recursion_depth > 0:
+                recursion_depth_list = np.append(recursion_depth_list, recursion_depth)
 
           if not is_predictive or not is_positive:
 
@@ -402,6 +404,17 @@ if __name__ == "__main__":
           
           else:
             targets_unlocalized_count[index_targets_estimated] += 1
+
+          if signal_transmission_count > 50:
+            plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+            plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+            plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+            plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+            plt.scatter(target_estimated[0], target_estimated[1], c="blue")
+            plt.scatter(target[0], target[1], c="red")
+            plt.show()
+            plt.close('all')
+            plt.clf()
         
         if is_successive:
           index_targets_begin = np.max(mask_targets_estimated) + 1
@@ -484,11 +497,11 @@ if __name__ == "__main__":
 
     lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
     if is_recursive:
-      recursive_count_avg_per_trial = np.mean(recursive_count_list) if recursive_count_list.size > 0 else 0
+      recursion_depth_avg_per_trial = np.mean(recursion_depth_list) if recursion_depth_list.size > 0 else 0
       if sim_cycle == 0:
-        recursive_count_avg = recursive_count_avg_per_trial
+        recursion_depth_avg = recursion_depth_avg_per_trial
       else:
-        recursive_count_avg = (recursive_count_avg*sim_cycle + recursive_count_avg_per_trial)/(sim_cycle + 1)
+        recursion_depth_avg = (recursion_depth_avg*sim_cycle_in_recursion + recursion_depth_avg_per_trial)/(sim_cycle_in_recursion + 1)
       lines_back += "\033[F"
 
     # 結果を算出
@@ -500,7 +513,7 @@ if __name__ == "__main__":
     print("\r Avg. Distance Measurement Count: " + "{:.4f}".format(distance_measurement_avg))
     print("\r Avg. PRS Transmission Count: " + "{:.4f}".format(signal_transmission_count_avg))
     if is_recursive:
-      print("\r Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg))
+      print("\r Avg. Recursion Depth: " + "{:.4f}".format(recursion_depth_avg))
     print("\r/////////////////////////////////////////////////")
     print("\n{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done.")
 
@@ -517,7 +530,7 @@ if __name__ == "__main__":
     "PRS Transmission Count": [signal_transmission_count_avg]
   })
   if is_recursive:
-    result_data["Avg. Recursive Count"] = [recursive_count_avg]
+    result_data["Avg. Recursion Depth"] = [recursion_depth_avg]
   result_filename = "result.csv"
   result_filepath = os.path.join(output_dirpath, result_filename)
   result_data.to_csv(result_filepath, index=False)
