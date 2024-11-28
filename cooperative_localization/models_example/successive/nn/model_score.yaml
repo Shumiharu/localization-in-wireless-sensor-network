@@ -1,0 +1,20 @@
+model_ex:
+  accuracy_score: 0.80435
+  precision_score: 0.7948842166456739
+  recall_score: 0.8204
+  f1_score: 0.8074405787116776
+model_ex2:
+  accuracy_score: 0.8015
+  precision_score: 0.7985739750445633
+  recall_score: 0.8064
+  f1_score: 0.8024679072544532
+model_ex3:
+  accuracy_score: 0.8004
+  precision_score: 0.7826496048174633
+  recall_score: 0.8318
+  f1_score: 0.8064766337017645
+model_ex4:
+  accuracy_score: 0.8004
+  precision_score: 0.7826496048174633
+  recall_score: 0.8318
+  f1_score: 0.8064766337017645

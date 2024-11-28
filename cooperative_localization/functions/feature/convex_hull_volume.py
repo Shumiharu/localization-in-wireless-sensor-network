@@ -1,3 +1,4 @@
+# 凸包の計算
 import numpy as np
 from scipy.spatial import ConvexHull
 

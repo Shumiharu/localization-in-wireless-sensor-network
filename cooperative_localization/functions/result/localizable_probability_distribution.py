@@ -5,6 +5,7 @@ def update(field_distribution: np.ndarray, grid_interval: float, targets: np.nda
     # is_localized = np.any(np.all(targets_localized == target, axis=1))
     is_localized = target[2]
 
+    # 小数点以下の数をグリッドの値分で丸める
     target_rounded = np.round(target, decimal_places(grid_interval))
     indices = np.where(np.all(np.isclose(field_distribution[:, :2], target_rounded[:2]), axis=1))[0]
     for index in indices:
@@ -13,6 +14,7 @@ def update(field_distribution: np.ndarray, grid_interval: float, targets: np.nda
       field_distribution[index, 3] += 1
   return field_distribution
 
+# 小数点以下の数を数える
 def decimal_places(number: float) -> int:
     decimal_str = str(number).split('.')
     return len(decimal_str[-1]) if '.' in str(number) else 0

@@ -1,0 +1,127 @@
+import os
+import sys
+import numpy as np
+import pandas as pd
+import yaml
+import joblib
+
+import lightgbm as lgb
+
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+import lightgbm as lgb
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.inspection import permutation_importance
+import shap 
+
+if __name__ == "__main__":
+  
+  args = sys.argv
+  is_subprocess = True if len(args) == 2 else False
+
+  # Open configuration file
+  config_filename = "config_0.yaml"
+  config_filepath = "../configs/" + config_filename
+  if is_subprocess:
+    config_filepath = os.path.join(args[1], "config.yaml")
+  with open(config_filepath, "r") as config_file:
+    config = yaml.safe_load(config_file)
+    print(f"{config_filename} was loaded from {config_filepath}")
+
+  # Learning Model
+  is_built_successively = config["model"]["is_built_successively"]
+  
+  model_subdirname = "successive" if is_built_successively else "collective"
+  model_type = config["model"]["type"]
+  model_filename = config["model"]["filename"]
+  model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+  print(f"\nModel will be built in {model_filepath}")
+
+  # Read Sample Data
+  is_successive = config["localization"]["is_successive"]
+  sample_data_subdirname = model_subdirname
+  sample_data_filename = config["sample_data"]["filename"]
+  sample_data_filepath = f"../sample_data/{sample_data_subdirname}/{sample_data_filename}"
+  features_data = pd.read_csv(sample_data_filepath)
+  features_sample_list = features_data.to_numpy()
+  print(f"\n{sample_data_filename} was loaded from {sample_data_filepath}")
+
+  # 正解ラベル
+  error_threshold = config["model"]["error_threshold"]
+  error_threshold_grid = config["model"]["error_threshold_grid"]
+  # labels = np.where(features_sample_list[:, -1] >= error_threshold, 1, 0)
+
+  # 多値分類用
+  # labels10 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*9), 1, 0)
+  # labels9 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*8), 1, 0)
+  # labels8 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*7), 1, 0)
+  # labels7 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*6), 1, 0) 
+  # labels6 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*5), 1, 0)
+  # labels5 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*4), 1, 0)
+  labels4 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*3), 1, 0)
+  labels3 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*2), 1, 0)
+  labels2 = np.where(features_sample_list[:,-1] <= (error_threshold - error_threshold_grid*1), 1, 0)
+  labels1 = np.where(features_sample_list[:,-1] <= error_threshold, 1, 0)
+  labels = labels1 + labels2 + labels3 + labels4 #+ labels5 #+ labels6 + labels7 + labels8 + labels9 + labels10
+  # label_counter = np.sum(labels == 4) # ラベルの個数確認
+  # labels = features_sample_list[:, -1] # 山本先輩結果合わせのため
+
+  # 学習用と評価をランダムに抽出
+  explanatory_variables_train, explanatory_variables_test, lables_train, lables_test = train_test_split(features_sample_list[:, :-1], labels, stratify=labels, random_state=0)
+
+  # SVMのパイプラインを作成
+  pipe_line = make_pipeline(StandardScaler(), SVC(random_state=0))
+
+  #ランダムフォレスト版
+  # pipe_line = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=0))
+
+  #lightgbm(勾配ブースティング木)版
+  #pipe_line = make_pipeline(StandardScaler(), lgb.LGBMClassifier(random_state=0))
+
+  #neural network版
+  #pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0))
+
+  # Cパラメータの設定
+  cost_parameter_range = config["model"]["cost_parameter_range"]
+  cost_parameter_grid = [{"svc__C": cost_parameter_range, "svc__kernel": ["rbf"], "svc__gamma":[0.1,0.01,0.001]}]
+
+  #ランダムフォレスト版
+  # cost_parameter_grid = [{'randomforestclassifier__n_estimators':[50,100,150],'randomforestclassifier__max_depth':[5,10,15]}]
+  
+  #lightgbm(勾配ブースティング木)版
+  #cost_parameter_grid = [{'lgbmclassifier__n_estimators':[5,10,15],'lgbmclassifier__max_depth':[5,10,15] }]
+
+  # neural network
+  # if model_type == "nn":
+  #   pipe_line = make_pipeline(StandardScaler(),MLPClassifier(activation='logistic',random_state=0, max_iter=500, early_stopping=True))
+  #   cost_parameter_grid = [{"mlpclassifier__learning_rate_init":[0.01,0.005,0.001]}]
+
+  # グリッドサーチ
+  grid_search = GridSearchCV(
+    estimator = pipe_line,
+    param_grid = cost_parameter_grid,
+    scoring = "accuracy",
+    cv = 5,
+    refit = True,
+    n_jobs= -1,
+    error_score="raise"
+  ).fit(explanatory_variables_train, lables_train)
+  print(f"grid_search.best_score_: {grid_search.best_score_}")
+  print(f"grid_search.best_params_: {grid_search.best_params_}")
+
+  # 最適パラメータを用いてモデルを作成・保存
+  model = grid_search.best_estimator_.fit(explanatory_variables_train, lables_train)
+  joblib.dump(model, model_filepath)
+  feature_importance = permutation_importance(model,explanatory_variables_test,lables_test,n_repeats=20,random_state=0,n_jobs=-1)
+  print(f"feature_importance: {feature_importance["importances_mean"]}")
+  #feature_shap = shap.TreeExplainer(model,explanatory_variables_test)
+  #shap_value = feature_shap.shap_values(explanatory_variables_test)
+  #shap.summary_plot(shap_value, explanatory_variables_test)
+
+
+  print(f"{model_filename} was built in {model_filepath}")
+

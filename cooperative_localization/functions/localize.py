@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import numpy as np
 import random
 import yaml
@@ -10,27 +11,26 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import time
+from collections import Counter
 
-random.seed(42)
-np.random.seed(42)
+# ランダムシードの設定
+# random.seed(42)
+# np.random.seed(42)
 
 # 基本関数
 from basis import distance_toa
-from basis import normalization
-from basis import line_of_position
-from basis import newton_raphson
+from basis import target_coordinates
+from basis import distances_avg
 
 # 特徴量の算出
-from feature import distance_from_sensors_to_approximate_line
-from feature import distance_from_center_of_field_to_target
-from feature import convex_hull_volume
-from feature import residual_avg
 from feature import distance_error_squared
+from feature import feature_extraction
 
 # 結果算出
 from result import rmse_distribution
 from result import localizable_probability_distribution
-
+from result import calculate_min_distance
+from result import calculate_norm
 
 if __name__ == "__main__":
   
@@ -44,29 +44,52 @@ if __name__ == "__main__":
     config_filepath = os.path.join(args[1], "config.yaml")
   with open(config_filepath, "r") as config_file:
     config = yaml.safe_load(config_file)
-    print(f"{config_filename} was loaded from {config_filepath}")
+    print(f"\n{config_filename} was loaded from {config_filepath}\n")
 
-  # Cooperative Localization or not
-  is_cooperative_localization = config["localization"]["is_cooperative"]
+  # Localization Config
+  is_successive: bool = config["localization"]["is_successive"]
+  is_cooperative: bool = config["localization"]["is_cooperative"]
+  is_predictive: bool = config["localization"]["is_predictive"]
+  is_recursive: bool = config["localization"]["is_recursive"]
+  is_sorted = config["localization"]["is_sorted"]
+
+
+
+  max_localization_loop: int = config["localization"]["max_loop"] # 最大測位回数（この回数が多いほど通信における再送回数が多くなる）
+  distance_measurement_max: int = config["localization"]["max_distance_measurement"] # 最大測距回数（この回数が多いほど通信における再送回数が多くなる）
+  max_signal_transmission:int = config["localization"]["max_signal_transmission"] # 各センサの最大測距信号送信回数
+
+  newton_raphson_max_loop: int = config["localization"]["newton_raphson"]["max_loop"] # Newton Raphson 計算回数の最大
+  newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
+
   print("Localization: Least Square (LS) Method", end=" ")
-  print("with Cooperation" if is_cooperative_localization else "without Cooperation")
+  print("with Cooperation" if is_cooperative else "without Cooperation", end=" ")
+  print("'Collectively'" if not is_successive else "'Successively (Conventional Algorithm)'")
+
+  print("\nEstimated targets (variable: targets_estimated) are localized", end=" ")
+  print("in order from the center." if is_sorted else "in that order.")
 
   # Learning Model
-  is_predictive = config["localization"]["is_predictive"]
-  is_recursive = config["localization"]["is_recursive"]
   if is_predictive:
-    error_threshold = config["model"]["error_threshold"]
+    is_built_successively = config["model"]["is_built_successively"]
+    is_models_example = config["model"]["is_example"]
+    is_division = config["model"]["is_division"]
+    model_subdirname = "successive" if is_built_successively else "collective" # 測位がcollectiveでもモデルはsuccessiveを選択できる
+    model_type = config["model"]["type"]
     model_filename = config["model"]["filename"]
-    model_filepath = "../models/" + model_filename
-    model = joblib.load(model_filepath)
-    print("Error 'Recursive' Prediction" if is_recursive else "Error Prediction", end=" ")
-    print(f"by Machine Learning (model: {model_filename})")
+    model_filepath = f"../models/{model_subdirname}/{model_type}/{model_filename}"
+    if is_models_example:
+      model_filepath = f"../models_example/{model_subdirname}/{model_type}/{model_filename}"
+    model = joblib.load(model_filepath)    
+    print("\nError 'Recursive' Prediction" if is_recursive else "\nError Prediction", end=" ")
+    print(f"by Machine Learning (model: {model_type} -> filepath: {model_filepath})\n")
+
+    error_threshold = config["model"]["error_threshold"]
   else:
-    print("No Error Prediction")
+    print("\nNo Error Prediction\n")
 
   # Field Config
   field_range = config["field_range"]
-  
   grid_interval = field_range["grid_interval"]
   x_range = np.arange(field_range["x_bottom"], field_range["x_top"] + grid_interval, grid_interval)
   y_range = np.arange(field_range["y_bottom"], field_range["y_top"] + grid_interval, grid_interval)
@@ -77,10 +100,18 @@ if __name__ == "__main__":
   height = field_range["y_top"] - field_range["y_bottom"]
   print(f"field: {width} x {height}")
 
+  # Channel Config
+  channel = config["channel"] # LOSなどのチャネルを定義
+
   # Anchors & Targets Config
   anchors_config = config["anchors"]
-  anchors = np.array([[anchor_config["x"], anchor_config["y"], 1] for anchor_config in anchors_config])
+  anchors = np.array([[anchor_config["x"], anchor_config["y"], 0] for anchor_config in anchors_config])
   centroid_of_anchors = np.array([np.mean(anchors[:, 0]), np.mean(anchors[:, 1])])
+  
+  center_anchor_for_calculate = np.array([np.mean(anchors[:, 0]), np.mean(anchors[:, 1]),0])
+  anchor_ex = np.array([anchors_config[0]["x"],anchors_config[1]["y"]])
+  distance_centroid_to_anchors = np.linalg.norm(anchor_ex - centroid_of_anchors)
+  
   print("anchor: (x, y) = ", end="")
   for anchor_config in anchors_config:
     anchor_x = anchor_config["x"]
@@ -90,7 +121,7 @@ if __name__ == "__main__":
 
   targets_count: int = config["targets"]["count"]
   print("target: (x, y) = random")
-  print(f"=> target count: {targets_count}", end="\n\n")
+  print(f"=> target count: {targets_count}\n")
 
   # Fingerprint Config
   # fingerprint_filename = "fingerprint_0.csv"
@@ -101,19 +132,17 @@ if __name__ == "__main__":
   # fingerprint_list = fingerprint_data.to_numpy()
   # print(f"{fingerprint_filename} was loaded from {fingerprint_filepath}")
 
-  # Localization Config
+  # Simulation Cycle
   sim_cycles = config["sim_cycles"] # シミュレーション回数
-  max_localization_loop = config["localization"]["max_loop"] # 最大測位回数
-  channel = config["channel"] # LOSなどのチャネルを定義
-  max_distance_measurement: int = config["localization"]["max_distance_measurement"] # 測距回数の最大（この回数が多いほど通信における再送回数が多くなる）
-  newton_raphson_max_loop: int = config["localization"]["newton_raphson"]["max_loop"] # Newton Raphson 計算回数の最大
-  newton_raphson_threshold: float = eval(config["localization"]["newton_raphson"]["threshold"]) # Newton Raphson 閾値
+  print(f"Simulation Cycle: {sim_cycles}\n")
 
   # Temporary Parameter
   squared_error_total = 0.0 # シミュレーション全体における合計平方根誤差
   targets_localized_count_total = 0 # シミュレーション全体における合計ターゲット測位回数
   root_mean_squared_error_list = np.array([]) # シミュレーション全体におけるRMSEのリスト
+  signal_transmission_count_list = np.array([])# simulation一回ごとのPRS信号の総送信回数のリスト
   # squared_error_lists = np.empty((0,20))
+  error_list: np.ndarray = np.array([])
 
   # Make Folder and Save Config
   if is_subprocess:
@@ -130,22 +159,24 @@ if __name__ == "__main__":
       yaml.safe_dump(config, config_saved_file)
       print(f"{config_filename} was saved.")
   
-  
-  print("", end="\n")
+  print("\n\n\n\n\n\n\n\n\n\n")
 
   localize_time_ave_total = 0.0    
   localize_time_list = np.array([])
   sim_time_start = time.time()
+  min_sensors_list = np.array([])
 
   # シミュレーション開始
   for sim_cycle in range(sim_cycles):
+
     # sensor は anchor と reference で構成
     sensors_original = np.copy(anchors) # 実際の座標
-    sensors: np.ndarray = np.copy(sensors_original) # anchor以外は推定座標
+    sensors = np.copy(sensors_original) # anchor以外は推定座標
 
     # ターゲット
     targets: np.ndarray = np.array([[round(random.uniform(0.0, width), 2), round(random.uniform(0.0, height), 2), 0] for target_count in range(targets_count)])
     np.random.shuffle(targets)
+
     # targets = np.array([
     #   [29.07, 6.51,  0.],
     #   [26.  ,  1.51,  0.],
@@ -172,152 +203,321 @@ if __name__ == "__main__":
     # 平方根誤差のリスト
     squared_error_list = np.array([])
     # squared_error_list = np.array([np.nan]*targets_count)
-    
-    #測位開始時間
-    localize_time_start = time.time()
-    for localization_loop in range(max_localization_loop):  
-      for target in targets:
-        distances_measured: np.ndarray = np.array([]) # 測距値（測距不可でも代入）
-        if target[2] == 0: # i番目のTNがまだ測位されていなければ行う
-          for sensor_original, sensor in zip(sensors_original, sensors):
-            distance_accurate = np.linalg.norm(target[:2] - sensor_original[:2])
-            distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
-            distances_measured = np.append(distances_measured, distance_measured)
-        else:
-          continue
+
+    # 再帰的処理の回数のリスト
+    recursive_count_list = np.array([])
+
+    # PRS信号送信回数の推移のリスト
+    transition_signal_transmission_count = np.array([])
+
+    # distances_measured_list = np.empty((0, len(targets)))
+    targets_localized = np.empty((0, 3))
+    targets_unlocalized_count = np.zeros(len(targets))
+    signal_transmission_count = 0
+    # distances_measured_list_count = np.empty((0, len(targets)))
+    index_targets_begin = 0
+    is_initial_distances_measurement = True
+
+    # 測位開始時間を取得
+    time_localization_start = time.time()
+
+    is_localizable = True
+    # 各センサのPRS送信回数をカウント
+    sensors_prs_count = np.zeros(len(targets)+len(sensors))
+    # 測位に失敗した原因ごとに回数を記録
+    targets_unlocalized_reasons = np.zeros(2)
+    # targets_unlocalized_by_measure = np.zeros(len(targets))
+    # 測位可能な場合が続くまで
+    while is_localizable:
+
+      # 測距値のリセット
+      if is_successive:
+        distances_measured_list = np.empty((0, len(targets)))
+
+      # distance_centroid_to_sensors = calculate_norm.calculate(sensors,center_anchor_for_calculate)
+      
+      # sensors_inside_anchors = np.where(distance_centroid_to_anchors >= distance_centroid_to_sensors)
+      # sensors_outside_anchors = np.where(distance_centroid_to_anchors < distance_centroid_to_sensors)  
+      
+      # if np.any(sensors_prs_count[sensors_inside_anchors] >= max_signal_transmission):
+      #   mask_sensors_over_measure = np.where(sensors_prs_count[sensors_inside_anchors] >= max_signal_transmission)
+      #   sensors[mask_sensors_over_measure,2] = 1
+
+      # if np.any(sensors_prs_count[sensors_outside_anchors] >= max_signal_transmission ):
+      #   mask_sensors_over_measure = np.where(sensors_prs_count[sensors_outside_anchors] >= max_signal_transmission )
+      #   sensors[mask_sensors_over_measure,2] = 1  
+
+      # PRS送信回数が最大値に達した場合測距フラグを更新
+      if np.any(sensors_prs_count >= max_signal_transmission):
+        mask_sensors_over_measure = np.where(sensors_prs_count >= max_signal_transmission)
+        sensors[mask_sensors_over_measure,2] = 1
+
+      # 測距フェーズ　測距できなかったターゲットのインデックスの記録及び順番をローテーションする
+      mask_targets_unlocalized_original = np.where(targets[:, 2] == 0)[0]
+      shift_targets_begin = np.argmax(mask_targets_unlocalized_original >= index_targets_begin)
+      mask_targets_unlocalized = np.roll(mask_targets_unlocalized_original, -shift_targets_begin)
+      mask_sensors_measured = np.where(sensors[:, 2] == 1)[0]
+      mask_sensors_unmeasured = np.where(sensors[:, 2] == 0)[0]
+
+
+      
+      # 測距を行ったSNの数の記録
+      signal_transmission_count += len(mask_sensors_unmeasured)*distance_measurement_max
+      transition_signal_transmission_count = np.append(transition_signal_transmission_count,signal_transmission_count)
+
+      # print(f"mask_targets_unlocalized_original: {np.where(targets[:, 2] == 0)[0]}")
+      # print(f"index_targets_begin: {index_targets_begin}")
+      # print(f"shift_targets_begin: {shift_targets_begin}")
+      # print(f"mask_targets_unlocalized: {mask_targets_unlocalized}")
+
+      # 測距値の算出
+      distances_measured_list = np.array([
+        [
+          distance_toa.calculate(channel, distance_measurement_max, np.linalg.norm(target[:2] - sensor_original[:2]))[0] if index_target in mask_targets_unlocalized else np.nan
+          for index_target, target in enumerate(targets)
+          # enumerateでインデックスと座標データを同時に取り出している
+        ]
+        for sensor_original in sensors_original[mask_sensors_unmeasured]
+      ])
+
+      # 測距に参加したセンサのPRS送信回数を+1
+      sensors_prs_count[mask_sensors_unmeasured] += 1
+
+      # 平均測距値の算出（今回の試行で測距不能でも，前回の試行で測距値が得られていたならばそちらを利用する）
+      # 最初の測距の場合こちらに入る
+      if is_initial_distances_measurement:
+        # 測距データのリスト 
+        distances_measured_list_avg = distances_measured_list
+        # 測距できたデータのリスト（1,0表記）
+        distances_measured_list_count = np.where(np.isinf(distances_measured_list), 0, 1)
+        is_initial_distances_measurement = False # ここをコメントアウトすると，測距値は都度リセットされる
+      else:
+        distances_measured_list_avg, distances_measured_list_count = distances_avg.calculate(distances_measured_list_avg, distances_measured_list, distances_measured_list_count,mask_sensors_measured)
         
-        # 三辺測量の条件（LOPの初期解を導出できる条件）
-        mask_distance_measurable = ~np.isinf(distances_measured)
-        distances_estimated = distances_measured[mask_distance_measurable]
-        sensors_available = sensors[mask_distance_measurable]
-        sensors_available_initial = np.copy(sensors_available)
+      # 測距フラグの更新
+      # if not is_successive:
+      #   sensors[mask_sensors_unmeasured, 2] = 1
 
-        is_initial_judge = True
-        target_estimated_mean = np.zeros(len(target))
-        recursive_count = 0
+      # 一時測位フェーズ
+      targets_estimated_initial = np.empty((0, 2))
+      # 測位できなかったインデックスを格納
+      mask_targets_estimated_initial = np.array([], dtype="int")
+      # distances_measured_list_transposed = distances_measured_list.T
+      distances_measured_list_avg_transposed = distances_measured_list_avg.T
+      
+      for index_targets_unlocalized, distances_measured_avg_for_targets_unlocalized in zip(mask_targets_unlocalized, distances_measured_list_avg_transposed[mask_targets_unlocalized]):
+        
+        # 最大測位試行回数を超えてなければ推定座標を算出（実際は最初のPRS送信時に最大測位試行回数のデータを含めており，最大測位試行回数を超えたものは測距そのものをしていないと仮定する）
+        if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
 
-        while len(distances_estimated) >= 3:
+          mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_avg_for_targets_unlocalized)
+          distances_estimated_for_targets_unlocalized = distances_measured_avg_for_targets_unlocalized[mask_distance_measurable_for_targets_unlocalized]
+          sensors_available_for_targets_unlocalized = sensors[mask_distance_measurable_for_targets_unlocalized]
+          if len(distances_estimated_for_targets_unlocalized) >= 3:
 
-          # 測位
-          target_estimated = line_of_position.calculate(sensors_available, distances_estimated) # Line of Positionによる初期解の算出
-          target_estimated = newton_raphson.calculate(sensors_available, distances_estimated, target_estimated, newton_raphson_max_loop, newton_raphson_threshold) # Newton Raphson法による最適解の算出
-          target_estimated = normalization.calculate(field_range, target_estimated) # 測位フィールド外に測位した場合の補正
-          target_estimated = np.append(target_estimated, 0) # 測位フラグの付加
+            target_estimated_initial = target_coordinates.calculate(
+              sensors_available_for_targets_unlocalized,
+              distances_estimated_for_targets_unlocalized,
+              newton_raphson_max_loop,
+              newton_raphson_threshold,
+              field_range
+            )
+
+            if not np.any(np.isnan(target_estimated_initial)):
+              targets_estimated_initial = np.append(targets_estimated_initial, [target_estimated_initial], axis=0)
+              mask_targets_estimated_initial = np.append(mask_targets_estimated_initial, index_targets_unlocalized)
+              if is_successive and not is_sorted:
+                break
+            # else:
+            #   targets_unlocalized_count[index_targets_unlocalized] += 1
+
+          else:
+            # 一時測位できない場合は加算
+            targets_unlocalized_count[index_targets_unlocalized] += 1
+            targets_unlocalized_reasons[0] += 1
+
+
+      
+      # 座標決定フェーズ
+      if len(targets_estimated_initial) > 0:
+        
+        # 測位した順番に座標を決定（デフォルト）
+        mask_sorted = np.arange(len(targets_estimated_initial))
+
+        if is_sorted:
+          # ANの中心に近い方から座標を順に決定
+          mask_sorted = np.argsort(np.linalg.norm(targets_estimated_initial - centroid_of_anchors, axis=1))
+          if is_successive:
+            mask_sorted = mask_sorted[:1]
+
+        targets_estimated = targets_estimated_initial[mask_sorted]
+        mask_targets_estimated = mask_targets_estimated_initial[mask_sorted]
+        for index_targets_estimated, target_estimated in zip(mask_targets_estimated, targets_estimated):
           
-          if not np.any(np.isnan(target_estimated)):
+          # 実際の座標を取得
+          target = targets[index_targets_estimated]
+          # print(f"target: {target}")
+
+          distances_measured_avg_for_target_estimated = distances_measured_list_avg_transposed[index_targets_estimated]
+          mask_distance_measurable_for_target_estimated = ~np.isinf(distances_measured_avg_for_target_estimated)
+
+          distances_estimated_for_target_estimated = distances_measured_avg_for_target_estimated[mask_distance_measurable_for_target_estimated]
+          sensors_available_for_target_estimated = sensors[:len(mask_distance_measurable_for_target_estimated)][mask_distance_measurable_for_target_estimated]
+          sensors_available_for_target_estimated_orignal = np.copy(sensors_available_for_target_estimated)
+
+          if is_predictive:
             
-            if is_predictive:
+            # 特徴量の算出
+            features = feature_extraction.calculate(
+              sensors_available_for_target_estimated,
+              distances_estimated_for_target_estimated,
+              target_estimated,
+              field_range
+            )
+            # print(f"features: {features}")
 
-              # 特徴量の計算
-              feature_convex_hull_volume = convex_hull_volume.calculate(sensors_available)
-              feature_distance_from_center_of_field_to_target = distance_from_center_of_field_to_target.calculate(field_range, target_estimated)
-              feature_distance_from_sensors_to_approximate_line = distance_from_sensors_to_approximate_line.calculate(sensors_available)
-              feature_residual_avg = residual_avg.calculate(sensors_available, distances_estimated, target_estimated)
+            # 陽性判定
+            is_positive = model.predict([features])
 
-              features = np.array([
-                feature_convex_hull_volume,
-                feature_distance_from_center_of_field_to_target,
-                feature_distance_from_sensors_to_approximate_line,
-                feature_residual_avg,
-              ]) 
+            # 閾値分割する場合  (閾値が2.0以上は従来手法どうりに必ず再帰にかける)＊機械学習モデルの予測精度が急激に低下してしまう
+            # is_positive_probable = is_positive/8
+            # if is_positive_probable == 0:
+            #   is_positive = random.choices([0,1],weights=[is_positive_probable,(1.0-is_positive_probable)],k=1)              
+            # else:
+            #   is_positive = random.choices([0,1],weights=[0.5+is_positive_probable,(0.5-is_positive_probable)],k=1)
 
-            if not is_predictive or not model.predict([features]):
+
+            if is_positive and is_recursive:
+            # if is_positive[0] == 1 and is_recursive:
               
-              # 平均平方根誤差の算出
-              squared_error = distance_error_squared.calculate(target, target_estimated)
-              squared_error_list = np.append(squared_error_list, squared_error)
-              # order_localized = len(targets_localized) - 1
-              # squared_error_list[order_localized] = squared_error
+              # 再帰的処理のカウント初期化
+              recursive_count = 0 
 
-              # 測位フラグの更新
-              target[2], target_estimated[2] = 1, 1
-              # print(target_estimated)
+              targets_estimated_recursively = np.array([target_estimated])
+              while len(distances_estimated_for_target_estimated) >= 3:
 
-              # 協調測位の場合はReference Nodeとしてセンサを追加する
-              if is_cooperative_localization:
-                sensors_original = np.append(sensors_original, [target], axis=0)
-                sensors = np.append(sensors, [target_estimated], axis=0)
+                in_anchors = np.array([any(np.all(np.isclose(sensor_available_for_target_estimated, anchors), axis=1)) for sensor_available_for_target_estimated in sensors_available_for_target_estimated])
+                
+                # RNのインデックスを取得
+                mask_references = np.where(~in_anchors)[0]
+                if recursive_count == 0:
+                  recursive_count_max = np.sum(~in_anchors)
 
-              break
+                is_recursion_available = len(distances_estimated_for_target_estimated) > 3 and len(distances_estimated_for_target_estimated[~in_anchors]) > 0
+                if not is_recursion_available:
+                  if recursive_count == recursive_count_max > 0:
+                    is_positive = False
+                    # is_positive[0] = 0
+                    target_estimated = np.mean(targets_estimated_recursively, axis=0)
+                  break
+                
+                distances_estimated_for_target_estimated_from_references = distances_estimated_for_target_estimated[mask_references]
+                index_distances_estimated_for_target_estimated_from_references_max = mask_references[np.argmax(distances_estimated_for_target_estimated_from_references)]
 
-            else:
-              if is_recursive:
-                if is_initial_judge or np.linalg.norm(target_estimated[:2] - target_estimated_previous[:2]) < error_threshold:
-                  in_anchors = np.array([any(np.all(sensor_available == anchors, axis=1)) for sensor_available in sensors_available])
-                  
-                  if np.all(in_anchors) and recursive_count == recursive_count_max: # ここのif文をis_initial_judgeにすると測位確率は99.99%になるが測位精度が大きく劣化
+                distances_estimated_for_target_estimated = np.delete(distances_estimated_for_target_estimated, index_distances_estimated_for_target_estimated_from_references_max)
+                sensors_available_for_target_estimated = np.delete(sensors_available_for_target_estimated, index_distances_estimated_for_target_estimated_from_references_max, axis=0)
+                
+                target_estimated_recursively = target_coordinates.calculate(
+                  sensors_available_for_target_estimated,
+                  distances_estimated_for_target_estimated,
+                  newton_raphson_max_loop,
+                  newton_raphson_threshold,
+                  field_range
+                )
 
-                    # 平均平方根誤差の算出
-                    squared_error = distance_error_squared.calculate(target, target_estimated_mean)
-                    squared_error_list = np.append(squared_error_list, squared_error)
+                features_recursively = feature_extraction.calculate(
+                  sensors_available_for_target_estimated,
+                  distances_estimated_for_target_estimated,
+                  target_estimated_recursively,
+                  field_range
+                )
 
-                    # 測位フラグの更新
-                    target[2], target_estimated_mean[2] = 1, 1
-
-                    # 協調測位の場合はReference Nodeとしてセンサを追加する
-                    if is_cooperative_localization:
-                      sensors_original = np.append(sensors_original, [target], axis=0)
-                      sensors = np.append(sensors, [target_estimated_mean], axis=0)
-
-                    break
-
-                  if not np.all(in_anchors):
-                    if is_initial_judge:
-                      is_initial_judge = False
-                      recursive_count_max = len(sensors_available[~in_anchors])
-
-                    mask_rn = np.where(~in_anchors)[0]
-                    distances_estimated_from_rn = distances_estimated[mask_rn]
-                    mask_rn_max = mask_rn[np.argmax(distances_estimated_from_rn)]
-
-                    distances_estimated = np.delete(distances_estimated, mask_rn_max)
-                    sensors_available = np.delete(sensors_available, mask_rn_max, axis=0)
-
-                    target_estimated_previous = target_estimated
-                    target_estimated_mean = (target_estimated_mean*recursive_count + target_estimated)/(recursive_count + 1)
-
-                    recursive_count += 1
-                  else:
-                    break
+                # 誤差が小さいとされる場合は終了
+                is_positive = model.predict([features_recursively])
+                # # 閾値分割する場合  (閾値が2.0以上は従来手法どうりに必ず再帰にかける)
+                # is_positive_probable = is_positive/8
+                # if is_positive_probable == 0:
+                #   is_positive = random.choices([0,1],weights=[is_positive_probable,(1.0-is_positive_probable)],k=1)
+                # else:
+                #   is_positive = random.choices([0,1],weights=[0.5+is_positive_probable,(0.5-is_positive_probable)],k=1)
+                
+                if not is_positive:
+                # if is_positive[0] == 0:
+                  target_estimated = target_estimated_recursively
+                  break
+                
+                # 前回との測位誤差がerror_thresholdより大きい場合は終了
+                if np.linalg.norm(target_estimated_recursively - target_estimated) < error_threshold:
+                  target_estimated = target_estimated_recursively
+                  targets_estimated_recursively = np.append(targets_estimated_recursively, [target_estimated_recursively], axis=0)
                 else:
                   break
-              else:
-                break
+
+                # 再帰的処理のカウント
+                recursive_count += 1
+
+              # 再帰的処理を行った場合の処理回数の平均である点に注意
+              if recursive_count > 0:
+                recursive_count_list = np.append(recursive_count_list, recursive_count)
+
+          if not is_predictive or not is_positive:
+          # if is_positive[0] == 0 or not is_predictive:
+
+            # 推定座標の確定
+            target_localized = np.append(target_estimated, 0)
+            targets_localized = np.append(targets_localized, [target_localized], axis=0)
+            # print(f"target_localized[{index_targets_estimated}]: {target_localized}\n")
+
+            # 二乗誤差の算出
+            squared_error = distance_error_squared.calculate(target, target_localized)
+            squared_error_list = np.append(squared_error_list, squared_error)
+
+            # 協調測位であれば測位したTNをSNに追加する（RNに変更する）
+            # distance_sensors_target = calculate_norm.calculate(sensors,target_localized)
+            if is_cooperative:
+              sensors_original = np.append(sensors_original, [target], axis=0)
+              sensors = np.append(sensors, [target_localized], axis=0)
+
+            # 測位フラグの更新
+            targets[index_targets_estimated, 2] = 1
+          
           else:
-            break
+            targets_unlocalized_count[index_targets_estimated] += 1
+            targets_unlocalized_reasons[1] += 1
+        
+        if is_successive:
+          index_targets_begin = np.max(mask_targets_estimated) + 1
 
-        targets_localized = targets[targets[:, 2] == 1] # 推定座標ではないので注意
-        if len(targets_localized) == targets_count:
-          break
-      else:
-        continue
-      break
+      is_localizable = np.any(targets_unlocalized_count[mask_targets_unlocalized] < max_localization_loop)
+
+      # if not is_localizable:
+      #   print(f"\ntargets:\n {targets}")
+      #   print(f"unlocalized count:\n{targets_unlocalized_count}")
+
+      if len(targets_localized) == targets_count:
+        break
     
-    localize_time_end = time.time()
-    localize_time_length = localize_time_end - localize_time_start
-    #1測位の平均時間
-    localize_time_ave = localize_time_length/(localization_loop+1)
-
-    #１測位の平均時間の合計（最終的にシミュレーション回数で割る）
-    localize_time_ave_total += localize_time_ave
-
-    #記録をリストに格納
-    localize_time_list = np.append(localize_time_list,localize_time_ave)
-
-    # targets_not_localized = targets[targets[:, 2] == 0]
-    # if len(targets_not_localized) > 0 and np.all((13.0 < target[:2]) & (target[:2] < 17.0)):
-    #   print(f"再帰回数: {recursive_count}")
+    # targets_unlocalized = targets[targets[:, 2] == 0]
+    # if len(targets_unlocalized) > 0 :
     #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
-    #   plt.scatter(sensors_available_initial[:, 0], sensors_available_initial[:, 1], c="black")
-    #   plt.scatter(sensors_available[:, 0], sensors_available[:, 1], c="green")
-    #   plt.scatter(target_estimated_previous[0], target_estimated_previous[1], c="orange")
-    #   plt.scatter(targets_not_localized[:, 0], targets_not_localized[:, 1], c="blue")
+    #   plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+    #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+    #   plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+    #   plt.scatter(target_estimated[0], target_estimated[1], c="blue")
     #   plt.scatter(target[0], target[1], c="red")
     #   plt.show()
     #   plt.close('all')
     #   plt.clf()
 
-    # シミュレーション全体におけるMSE及びRMSEの算出
+    # 測位時間の算出
+    time_localization_end = time.time()
+    duration_localization_per_target =  (time_localization_end - time_localization_start)/(len(targets_localized) or 1)
+    if sim_cycle == 0:
+      duration_localization_per_target_avg = duration_localization_per_target
+    else:
+      duration_localization_per_target_avg = (duration_localization_per_target_avg*sim_cycle + duration_localization_per_target)/(sim_cycle + 1)
+
+    # 1試行回におけるTNのMSE及びRMSEの算出
     squared_error_total += np.sum(squared_error_list)
     # squared_error_total += np.nansum(squared_error_list)
     targets_localized_count_total += len(targets_localized)
@@ -327,37 +527,99 @@ if __name__ == "__main__":
     # 求めたRMSEをリストに追加
     root_mean_squared_error_list = np.append(root_mean_squared_error_list, root_mean_squared_error)
 
-    # 平均のRMSEの算出
+    # RMSE（シミュレーション平均）の算出
     if sim_cycle == 0:
       root_mean_squared_error_avg = root_mean_squared_error
     else:
       root_mean_squared_error_avg = (root_mean_squared_error_avg*sim_cycle + root_mean_squared_error)/(sim_cycle + 1)
+
+    min_sensors = calculate_min_distance.calculate(sensors)
+    if len(min_sensors_list) <= 10**5:
+      min_sensors_list=np.append(min_sensors_list,min_sensors)
+    
     
     # RMSEの分布を更新（協調測位の場合はRMSEの値が大きく振れるのであまり意味がないかも）
     # field_rmse_distribution = rmse_distribution.update(field_rmse_distribution, grid_interval, targets_localized, squared_error_list)
 
     # 測位順と測位誤差のリスト
     # squared_error_lists = np.append(squared_error_lists, np.array([squared_error_list]), axis=0)
+    
+    # TNごとに測位誤差を記録（ただしデータが大きくなりすぎてしまうためサンプル数を制限）
+    if len(error_list) <= 10**5:
+      error_list = np.append(error_list, np.sqrt(squared_error_list))
 
     # 測位可能確率の分布の更新とその平均の算出
     field_localizable_probability_distribution = localizable_probability_distribution.update(field_localizable_probability_distribution, grid_interval, targets, targets_localized)
     localizable_probability_avg = np.sum(field_localizable_probability_distribution[:, 2]*field_localizable_probability_distribution[:, 3])/np.sum(field_localizable_probability_distribution[:, 3])
 
-    print("\r" + "{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done." + " Average RMSE = " + "{:.4f}".format(root_mean_squared_error_avg) + " Average Localizable Probability = " + "{:.4f}".format(localizable_probability_avg), end="")
+
+    # 平均測距（した，PRSを送信した）回数の算出
+    if sim_cycle == 0:
+      signal_transmission_count_avg = signal_transmission_count
+    else:
+      signal_transmission_count_avg = (signal_transmission_count_avg*sim_cycle + signal_transmission_count)/(sim_cycle + 1)
+    
+    # if signal_transmission_count >= 40:
+    #   print(f"{np.max(targets_unlocalized_count)},{transition_signal_transmission_count}")
+    #   print("\n")
+    #   print(f"can't distance:{targets_unlocalized_reasons[0]} / can't recursive:{targets_unlocalized_reasons[1]}")
+    signal_transmission_count_list = np.append(signal_transmission_count_list,signal_transmission_count)
+
+
+    # 平均測距（された）回数の算出
+    localization_attempt_count = np.where(targets_unlocalized_count == max_localization_loop, max_localization_loop - 1, targets_unlocalized_count) + 1
+    localization_attempt_count_avg_per_trial = np.mean(localization_attempt_count)
+
+    distance_measurement_avg_per_trial = localization_attempt_count_avg_per_trial*distance_measurement_max
+    if sim_cycle == 0:
+      distance_measurement_avg = distance_measurement_avg_per_trial
+    else:
+      distance_measurement_avg = (distance_measurement_avg*sim_cycle + distance_measurement_avg_per_trial)/(sim_cycle + 1)
+
+    lines_back = "\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F"
+    if is_recursive:
+      recursive_count_avg_per_trial = np.mean(recursive_count_list) if recursive_count_list.size > 0 else 0
+      if sim_cycle == 0:
+        recursive_count_avg = recursive_count_avg_per_trial
+      else:
+        recursive_count_avg = (recursive_count_avg*sim_cycle + recursive_count_avg_per_trial)/(sim_cycle + 1)
+      lines_back += "\033[F"
+
+    # 結果を算出
+    print(lines_back, end="")
+    print("\r/////////////////////////////////////////////////")
+    print("\r Avg. RMSE per Trial: " + "{:.4f}".format(root_mean_squared_error_avg))
+    print("\r Avg. Localizable Probability: " + "{:.4f}".format(localizable_probability_avg))
+    print("\r Avg. Localization Duration per Target: " + "{:.6f}".format(duration_localization_per_target_avg))
+    print("\r Avg. Distance Measurement Count: " + "{:.4f}".format(distance_measurement_avg))
+    print("\r Avg. PRS Transmission Count: " + "{:.4f}".format(signal_transmission_count_avg))
+    if is_recursive:
+      print("\r Avg. Recursive Count: " + "{:.4f}".format(recursive_count_avg))
+    print("\r/////////////////////////////////////////////////")
+    print("\n{:.3f}".format((sim_cycle + 1)/sim_cycles*100) + "%" + " done.")
+
   print("\n")
   sim_time_end = time.time()
   sim_time_length = sim_time_end - sim_time_start
   #シミュレーションの開始・終了で平均シミュレーション時間を計算
   sim_time_ave = sim_time_length/sim_cycles
   
-  #1測位の平均時間の合計をsimulation回数で割ることでbreakした場合などに考慮？
-  sim_time_localize_ave = localize_time_ave_total/sim_cycles
-  
-  print(f"Average time by sim total = {sim_time_ave} s")
-  print("\n")
-  print(f"Average time by localize average = {sim_time_localize_ave} s")
-  print("\n")
-  print(f"Average RMSE = {root_mean_squared_error_avg} m")
+  print(f"RMSE: {root_mean_squared_error_avg} m")
+
+  # 結果を出力
+  result_data = pd.DataFrame({
+    "Avg. RMSE per Trial": [root_mean_squared_error_avg],
+    "Avg. Localization Probability": [localizable_probability_avg],
+    "Avg. Localization Duration per Target": [duration_localization_per_target_avg],
+    "Avg. Distance Measurement Count": [distance_measurement_avg],
+    "PRS Transmission Count": [signal_transmission_count_avg]
+  })
+  if is_recursive:
+    result_data["Avg. Recursive Count"] = [recursive_count_avg]
+  result_filename = "result.csv"
+  result_filepath = os.path.join(output_dirpath, result_filename)
+  result_data.to_csv(result_filepath, index=False)
+  print(f"result was saved in {result_filepath}")
 
   # RMSEの累積分布関数を出力
   root_mean_squared_error_list_sorted = np.sort(root_mean_squared_error_list)
@@ -370,7 +632,32 @@ if __name__ == "__main__":
   cdf_filepath = os.path.join(output_dirpath, cdf_filename)
   cumulative_distribution_function_data.to_csv(cdf_filepath, index=False)
   print(f"{cdf_filename} was saved in {cdf_filepath}.")
-  
+
+  # 各センサ間距離の最小値の累積分布関数
+  min_sensors_list_sorted = np.sort(min_sensors_list)
+  cumlative_distribution_function_min_sensors = np.cumsum(min_sensors_list_sorted)/np.sum(min_sensors_list)
+  cumlative_distribution_function_min_sensors_data = pd.DataFrame({
+    "min_sensor_distance" : min_sensors_list_sorted,
+    "CDF" : cumlative_distribution_function_min_sensors
+  })
+  cdf_min_sensor_filename = "cumulative_distribution_function_min_sensor.csv"
+  cdf_min_sensor_filepath = os.path.join(output_dirpath, cdf_min_sensor_filename)
+  cumlative_distribution_function_min_sensors_data.to_csv(cdf_min_sensor_filepath, index=False)
+  print(f"{cdf_min_sensor_filename} was saved in {cdf_min_sensor_filepath}.")
+
+  # PRS信号の送信回数の累積分布関数
+  signal_transmission_count_sorted = np.sort(signal_transmission_count_list)
+  signal_transmission_count_values,signal_transmission_count_counts = np.unique(signal_transmission_count_sorted,return_counts = True)
+  cumlative_distribution_function_signal_transmission_count = np.cumsum(signal_transmission_count_counts)/np.sum(signal_transmission_count_counts)
+  cumlative_distribution_function_signal_transmission_count_data = pd.DataFrame({
+    "signal_transmission_count" : signal_transmission_count_values,
+    "CDF" : cumlative_distribution_function_signal_transmission_count
+  })
+  cdf_signal_transmission_count_filename = "cumulative_distribution_function_signal_transmission_count.csv"
+  cdf_signal_transmission_count_filepath = os.path.join(output_dirpath, cdf_signal_transmission_count_filename)
+  cumlative_distribution_function_signal_transmission_count_data.to_csv(cdf_signal_transmission_count_filepath, index=False)
+  print(f"{cdf_signal_transmission_count_filename} was saved in {cdf_signal_transmission_count_filepath}.")
+
   # RMSEの分布を出力
   # field_rmse_distribution_data = pd.DataFrame({
   #   "x": field_rmse_distribution[:, 0],
@@ -382,6 +669,18 @@ if __name__ == "__main__":
   # field_rmse_distribution_filepath = os.path.join(output_dirpath, field_rmse_distribution_filename)
   # field_rmse_distribution_data.to_csv(field_rmse_distribution_filepath, index=False)
   # print(f"{field_rmse_distribution_filename} was saved in {field_rmse_distribution_filepath}.")
+
+  # 測位誤差の累積分布関数を出力
+  error_list_sorted = np.sort(error_list)
+  cumulative_distribution_function_error = np.cumsum(error_list_sorted)/np.sum(error_list_sorted)
+  cumulative_distribution_function_error_data = pd.DataFrame({
+    "error": error_list_sorted,
+    "CDF": cumulative_distribution_function_error
+  })
+  cumulative_distribution_function_error_filename = "cdf_error.csv"
+  cumulative_distribution_function_error_filepath = os.path.join(output_dirpath, cumulative_distribution_function_error_filename)
+  cumulative_distribution_function_error_data.to_csv(cumulative_distribution_function_error_filepath, index=False)
+  print(f"{cumulative_distribution_function_error_filename} was saved in {cumulative_distribution_function_error_filepath}.")
 
   # 測位可能確率の分布を出力
   field_localizable_probability_distribution_data = pd.DataFrame({
@@ -407,11 +706,7 @@ if __name__ == "__main__":
   # order_to_root_mean_squared_error_data.to_csv(order_to_root_mean_squared_error_filepath, index=False)
   # print(f"{order_to_root_mean_squared_error_filename} was saved in {order_to_root_mean_squared_error_filepath}.")
 
-
-# メモ
-# ホップした数の平均をとってそのRMSEを算出
-# もう少し関数化できる
-# collect_sample_dataやbuild_modelなどを関数化して同じconfigで一度に同時実行することも考えたが，サンプルデータやモデルのデータの容量などを考えると現行で問題ないと判断
+  print("\ncomplete.")
 
 # anchor nodeによる測距
 # targets_estimated = np.empty((0,2))
@@ -421,7 +716,7 @@ if __name__ == "__main__":
 #   rx_power_list = np.array([])
 #   for anchor in anchors:
 #     distance_accurate = np.linalg.norm(target[:2] - anchor[:2])
-#     distance_measured, rx_power = distance_toa.calculate(channel, max_distance_measurement, distance_accurate)
+#     distance_measured, rx_power = distance_toa.calculate(channel, distance_measurement_max, distance_accurate)
 #     distances_measured = np.append(distances_measured, distance_measured)
 #     rx_power_list = np.append(rx_power_list, rx_power)
 #   print(fingerprint_list[:, 2:])
@@ -438,26 +733,3 @@ if __name__ == "__main__":
 # for target in targets:
 #   a = np.linalg.norm(target[:2] - centroid_of_anchors)
 #   print(f"distance = {a}")
-
-    # targets = np.array([
-    #   [29.07, 6.51,  0.],
-    #   [26.  ,  1.51,  0.],
-    #   [24.27,  9.13,  0.  ],
-    #   [11.56,  9.25,  0.  ],
-    #   [22.2 ,  9.23,  0.  ],
-    #   [11.52,  9.6 ,  0.  ],
-    #   [15.9 , 11.12,  0.  ],
-    #   [ 2.94, 20.45,  0.  ],
-    #   [27.61, 23.74,  0.  ],
-    #   [29.58, 28.73,  0.  ],
-    #   [28.54, 16.64,  0.  ],
-    #   [26.18, 14.76,  0.  ],
-    #   [22.28,  5.84,  0.  ],
-    #   [4.95, 3.95, 0.  ],
-    #   [ 8.08, 27.02,  0.  ],
-    #   [15.63, 20.38,  0.  ],
-    #   [24.59, 28.69,  0.  ],
-    #   [ 2.4 , 22.39,  0.  ],
-    #   [15.75, 25.06,  0.  ],
-    #   [9.76, 7.18, 0.  ]
-    # ])

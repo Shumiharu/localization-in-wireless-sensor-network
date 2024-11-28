@@ -1,8 +1,11 @@
 .DS_Store
 .vscode
 .backup
+nohup.out
+error.log
 
 cooperative_localization/functions/_.py
+cooperative_localization/functions/nohup.out
 cooperative_localization/functions/__pycache__
 cooperative_localization/functions/basis/__pycache__
 cooperative_localization/functions/feature/__pycache__
@@ -12,23 +15,65 @@ cooperative_localization/output/**
 !cooperative_localization/output/**/
 !cooperative_localization/output/**/.gitkeep
 
-cooperative_localization/models/**
-!cooperative_localization/models/**/
-!cooperative_localization/models/**/.gitkeep
+cooperative_localization/models/collective/lgb/**
+!cooperative_localization/models/collective/lgb/**/
+!cooperative_localization/models/collective/lgb/**/.gitkeep
 
-cooperative_localization/sample_data/**
-!cooperative_localization/sample_data/**/
-!cooperative_localization/sample_data/**/.gitkeep
+cooperative_localization/models/collective/nn/**
+!cooperative_localization/models/collective/nn/**/
+!cooperative_localization/models/collective/nn/**/.gitkeep
 
-cooperative_localization/evaluation_data/**
-!cooperative_localization/evaluation_data/**/
-!cooperative_localization/evaluation_data/**/.gitkeep
+cooperative_localization/models/collective/rf/**
+!cooperative_localization/models/collective/rf/**/
+!cooperative_localization/models/collective/rf/**/.gitkeep
 
-cooperative_localization_without_feature_vn/output/**
-!cooperative_localization_without_feature_vn/output/**/
-!cooperative_localization_without_feature_vn/output/**/.gitkeep
+cooperative_localization/models/collective/svm/**
+!cooperative_localization/models/collective/svm/**/
+!cooperative_localization/models/collective/svm/**/.gitkeep
 
-cooperative_localization_with_hop_count
+cooperative_localization/models/collective/xgb/**
+!cooperative_localization/models/collective/xgb/**/
+!cooperative_localization/models/collective/xgb/**/.gitkeep
+
+cooperative_localization/models/successive/lgb/**
+!cooperative_localization/models/successive/lgb/**/
+!cooperative_localization/models/successive/lgb/**/.gitkeep
+
+cooperative_localization/models/successive/nn/**
+!cooperative_localization/models/successive/nn/**/
+!cooperative_localization/models/successive/nn/**/.gitkeep
+
+cooperative_localization/models/successive/rf/**
+!cooperative_localization/models/successive/rf/**/
+!cooperative_localization/models/successive/rf/**/.gitkeep
+
+cooperative_localization/models/successive/svm/**
+!cooperative_localization/models/successive/svm/**/
+!cooperative_localization/models/successive/svm/**/.gitkeep
+
+cooperative_localization/models/successive/xgb/**
+!cooperative_localization/models/successive/xgb/**/
+!cooperative_localization/models/successive/xgb/**/.gitkeep
+
+cooperative_localization/sample_data/collective/**
+!cooperative_localization/sample_data/collective/**/
+!cooperative_localization/sample_data/collective/**/.gitkeep
+
+cooperative_localization/sample_data/successive/**
+!cooperative_localization/sample_data/successive/**/
+!cooperative_localization/sample_data/successive/**/.gitkeep
+
+cooperative_localization/evaluation_data/collective/**
+!cooperative_localization/evaluation_data/collective/**/
+!cooperative_localization/evaluation_data/collective/**/.gitkeep
+
+cooperative_localization/evaluation_data/successive/**
+!cooperative_localization/evaluation_data/successive/**/
+!cooperative_localization/evaluation_data/successive/**/.gitkeep
+
+cooperative_localization/fingerprint/**
+!cooperative_localization/fingerprint/**/
+!cooperative_localization/fingerprint/**/.gitkeep
 
 fingerprinting/output/**
 !fingerprinting/output/**/

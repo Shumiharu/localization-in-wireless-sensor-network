@@ -1,3 +1,4 @@
+# 誤差の二乗距離計算
 import numpy as np
 
 def calculate(target: np.ndarray, target_localized: np.ndarray) -> float:
