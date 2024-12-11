@@ -40,7 +40,7 @@ localization:
   is_recursive: true 
   max_loop: 7
   max_distance_measurement: 1
-  max_signal_transmission: 2
+  max_signal_transmission: 4
   newton_raphson:
     max_loop: 10
     threshold: 10**(-8)

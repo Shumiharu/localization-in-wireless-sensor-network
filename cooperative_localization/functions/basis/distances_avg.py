@@ -1,15 +1,15 @@
 import numpy as np
 
-def calculate(distances_measured_list_avg: np.ndarray, distances_measured_list: np.ndarray, distances_measured_list_count: np.ndarray, mask_sensors_measured: np.ndarray):
+def calculate(distances_measured_list_avg: np.ndarray, distances_measured_list: np.ndarray, distances_measured_list_count: np.ndarray):
     # print(distances_measured_list)
     # print(distances_measured_list_avg)
 
-    # 測距が上限になったセンサの数がある場合に上限になったセンサの部分の値を保存,前回施行時の配列の初期値が今回のものと同じになるよう成型
-    if len(mask_sensors_measured) > 0:
-        tmp_distances_measured_list_avg = distances_measured_list_avg[mask_sensors_measured]
-        tmp_distances_measured_list_count = distances_measured_list_count[mask_sensors_measured]
-        distances_measured_list_avg = np.delete(distances_measured_list_avg, mask_sensors_measured, axis = 0)
-        distances_measured_list_count = np.delete(distances_measured_list_count, mask_sensors_measured, axis = 0)
+    # 測距をしないセンサがある場合に測距しないセンサの部分の値を保存,前回施行時の配列の初期値が今回のものと同じになるよう成型
+    # if len(mask_sensors_measured) > 0:
+    #     tmp_distances_measured_list_avg = distances_measured_list_avg[mask_sensors_measured]
+    #     tmp_distances_measured_list_count = distances_measured_list_count[mask_sensors_measured]
+    #     distances_measured_list_avg = np.delete(distances_measured_list_avg, mask_sensors_measured, axis = 0)
+    #     distances_measured_list_count = np.delete(distances_measured_list_count, mask_sensors_measured, axis = 0)
 
     sensors_count = distances_measured_list.shape[0] 
     sensors_count_previous = distances_measured_list_avg.shape[0]
@@ -25,10 +25,10 @@ def calculate(distances_measured_list_avg: np.ndarray, distances_measured_list: 
         distances_measured_list_avg = np.vstack((distances_measured_list_avg, zeros_for_completion))
         distances_measured_list_count = np.vstack((distances_measured_list_count, zeros_for_completion))
 
-    if len(distances_measured_list) == 0:
-        distances_measured_list = tmp_distances_measured_list_avg
-        distances_measured_list_count = tmp_distances_measured_list_count
-        return distances_measured_list, distances_measured_list_count
+    # if len(distances_measured_list) == 0:
+    #     distances_measured_list = tmp_distances_measured_list_avg
+    #     distances_measured_list_count = tmp_distances_measured_list_count
+    #     return distances_measured_list, distances_measured_list_count
     
     # 測位できていないもののみ実行する
     mask_unlocalized = ~np.isnan(distances_measured_list).any(axis=0)
@@ -53,9 +53,10 @@ def calculate(distances_measured_list_avg: np.ndarray, distances_measured_list: 
         distances_measured_list[:, index_unlocalized] = np.where(distances_measured_list[:, index_unlocalized] == 0., -np.inf, distances_measured_list[:, index_unlocalized])
 
     distances_measured_list_count += np.where(np.isinf(distances_measured_list), 0, 1)
-    if len(mask_sensors_measured) > 0:
-        distances_measured_list = np.vstack((tmp_distances_measured_list_avg, distances_measured_list))
-        distances_measured_list_count = np.vstack((tmp_distances_measured_list_count, distances_measured_list_count))
+    # if len(mask_sensors_measured) > 0:
+    #     for mask_sensors_deleted, tmp_delete_datas, tmp_delete_counts in zip(mask_sensors_measured,tmp_distances_measured_list_avg,tmp_distances_measured_list_count):
+    #         distances_measured_list = np.insert(distances_measured_list, mask_sensors_deleted, tmp_delete_datas,axis = 0)
+    #         distances_measured_list_count = np.insert(distances_measured_list_count, mask_sensors_deleted, tmp_delete_counts,axis=0)
     return distances_measured_list, distances_measured_list_count
 
 # Example Usage

@@ -12,6 +12,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import time
 from collections import Counter
+import itertools
 
 # ランダムシードの設定
 # random.seed(42)
@@ -24,6 +25,7 @@ from basis import distances_avg
 
 # 特徴量の算出
 from feature import distance_error_squared
+from feature import convex_hull_volume
 from feature import feature_extraction
 
 # 結果算出
@@ -209,10 +211,12 @@ if __name__ == "__main__":
 
     # PRS信号送信回数の推移のリスト
     transition_signal_transmission_count = np.array([])
+    transition_sensors_measurable = np.array([])
 
     # distances_measured_list = np.empty((0, len(targets)))
     targets_localized = np.empty((0, 3))
     targets_unlocalized_count = np.zeros(len(targets))
+    targets_estimated_list = np.zeros((len(targets),2))
     signal_transmission_count = 0
     # distances_measured_list_count = np.empty((0, len(targets)))
     index_targets_begin = 0
@@ -222,11 +226,15 @@ if __name__ == "__main__":
     time_localization_start = time.time()
 
     is_localizable = True
+    # ループをしたかどうか
+    is_looped = False
     # 各センサのPRS送信回数をカウント
     sensors_prs_count = np.zeros(len(targets)+len(sensors))
     # 測位に失敗した原因ごとに回数を記録
     targets_unlocalized_reasons = np.zeros(2)
-    # targets_unlocalized_by_measure = np.zeros(len(targets))
+    # 挿入用の０ベクトル
+    zeros_for_insert = np.zeros(len(targets))
+    
     # 測位可能な場合が続くまで
     while is_localizable:
 
@@ -234,30 +242,162 @@ if __name__ == "__main__":
       if is_successive:
         distances_measured_list = np.empty((0, len(targets)))
 
-      # distance_centroid_to_sensors = calculate_norm.calculate(sensors,center_anchor_for_calculate)
       
-      # sensors_inside_anchors = np.where(distance_centroid_to_anchors >= distance_centroid_to_sensors)
-      # sensors_outside_anchors = np.where(distance_centroid_to_anchors < distance_centroid_to_sensors)  
-      
-      # if np.any(sensors_prs_count[sensors_inside_anchors] >= max_signal_transmission):
-      #   mask_sensors_over_measure = np.where(sensors_prs_count[sensors_inside_anchors] >= max_signal_transmission)
-      #   sensors[mask_sensors_over_measure,2] = 1
-
-      # if np.any(sensors_prs_count[sensors_outside_anchors] >= max_signal_transmission ):
-      #   mask_sensors_over_measure = np.where(sensors_prs_count[sensors_outside_anchors] >= max_signal_transmission )
-      #   sensors[mask_sensors_over_measure,2] = 1  
-
-      # PRS送信回数が最大値に達した場合測距フラグを更新
-      if np.any(sensors_prs_count >= max_signal_transmission):
-        mask_sensors_over_measure = np.where(sensors_prs_count >= max_signal_transmission)
-        sensors[mask_sensors_over_measure,2] = 1
+      #   # 測距回数が上限に達したセンサの数が半分以上になったら抜ける
+      #   # mask_finish_measure = np.where(sensors[:, 2] == 1)[0]
+      #   # if len(mask_finish_measure) >= 12:
+      #   #   break
 
       # 測距フェーズ　測距できなかったターゲットのインデックスの記録及び順番をローテーションする
       mask_targets_unlocalized_original = np.where(targets[:, 2] == 0)[0]
       shift_targets_begin = np.argmax(mask_targets_unlocalized_original >= index_targets_begin)
       mask_targets_unlocalized = np.roll(mask_targets_unlocalized_original, -shift_targets_begin)
+
+      # 二回目からの測位では次の手法を行う
+      if is_looped:
+        # 凸包の面積を計算
+        index_sensors = np.arange(len(sensors))
+        combinations_index_sensors_for_hull = itertools.combinations(index_sensors,4)
+        combination_index_list = np.empty((0,4))
+        hull_list = np.array([])
+        explore_number = 0
+        for combination_index_sensors_for_hull in combinations_index_sensors_for_hull:
+          index_data = np.array(combination_index_sensors_for_hull)
+          sensors_data = sensors[index_data]
+          hull_data = convex_hull_volume.calculate(sensors_data)
+          if explore_number == 0:
+            combination_index_list = index_data
+            hull_list = hull_data
+          else:
+            combination_index_list = np.vstack([combination_index_list,index_data])
+            hull_list = np.append(hull_list,hull_data)
+          explore_number +=1
+
+        # 使用するセンサーの計算用配列の初期化
+        use_sensors_count = np.zeros(len(sensors))
+
+        # 測距できていないターゲットのインデックスを取得
+        targets_unlocalized = np.where(targets[:, 2] == 0)[0]
+        # 今までの測距においてターゲットが測距データを得た場合１,-infなら０でリスト化
+        targets_get_measure_list = np.where(np.isinf(distances_measured_list_avg), 0, 1)
+        # 今までの測距においてターゲットが得た測距データの数の和を計算
+        numbers_targets_get_length = np.sum(targets_get_measure_list,axis = 0)
+        # 測距できていないターゲットのもののみに絞る        
+        numbers_targets_unlocalized_get_length = numbers_targets_get_length[targets_unlocalized]
+
+        # 測距できていないターゲットにおいてその時の得られた測距値の数とともにループ処理を行う
+        for target_unlocalized, number_targets_unlocalized_get_length in zip(targets_unlocalized,numbers_targets_unlocalized_get_length):
+          # 探査用の変数
+          explore = 0
+          # 測距データがない場合はいったん無視
+          if number_targets_unlocalized_get_length == 0:
+            use_sensors_count = use_sensors_count
+          
+          # 測距データが１つ得られた場合
+          elif number_targets_unlocalized_get_length == 1:
+            # 測距データが得られたセンサのインデックスを把握し使用するセンサに1カウント・さらにそのセンサを基準に処理を行っていく
+            index_sensor_get_measure = np.where(targets_get_measure_list[:, target_unlocalized] == 1)[0]
+            use_sensors_count[index_sensor_get_measure] += 1
+            sensors_standard = sensors[index_sensor_get_measure]
+            # 基準にしたセンサに近い順にインデックスを並べ替える(変数には並べ替えられた基準に近いsensorsのインデックスが格納)
+            index_sensors_sorted_near_standard = np.argsort(calculate_norm.calculate(sensors,sensors_standard))
+            
+            # センサの数を超えない限りループ処理を行う(近い奴から3つ選びその選択したものを一つ次に移動させていくパターン)
+            # （遠い奴を一つ次に移動させるほうが凸包を確実に大きくさせれそう？）
+            while explore + 3 <= len(index_sensors_sorted_near_standard):
+              sensors_selection_for_hull = sensors_standard
+              # index_sensors_sorted_for_hull_fixed = index_sensors_sorted_near_standard[3]
+              # index_sensors_sorted_for_hull_exp = index_sensors_sorted_near_standard[explore+1: explore+3]
+              # index_sensors_sorted_for_hull = index_sensors_sorted_for_hull_fixed
+              # index_sensors_sorted_for_hull = np.append(index_sensors_sorted_for_hull, index_sensors_sorted_for_hull_exp)
+              # sensors_sorted_for_hull = sensors[index_sensors_sorted_for_hull]
+              index_sensors_sorted_for_hull = index_sensors_sorted_near_standard[explore + 1: explore+4]
+              sensors_sorted_for_hull = sensors[index_sensors_sorted_for_hull]
+              sensors_selection_for_hull = np.append(sensors_selection_for_hull,sensors_sorted_for_hull, axis=0)
+              judge_hull = convex_hull_volume.calculate(sensors_selection_for_hull)
+
+              if judge_hull >= 100:
+                use_sensors_count[index_sensors_sorted_for_hull] += 1
+                break
+
+              explore +=1
+
+          # 測距データが２つ得られた場合
+          elif number_targets_unlocalized_get_length == 2:
+            index_sensor_get_measure = np.where(targets_get_measure_list[:, target_unlocalized] == 1)[0]
+            # use_sensors_count[index_sensor_get_measure] += 1
+            sensors_standard = sensors[index_sensor_get_measure]
+            center_sensors_standard = np.array([np.mean(sensors_standard[:, 0]), np.mean(sensors_standard[:, 1]),0])
+            index_sensors_sorted_near_standard = np.argsort(calculate_norm.calculate(sensors,center_sensors_standard))
+
+            while explore + 3 <= len(index_sensors_sorted_near_standard):
+              index_sensors_sorted_for_hull = index_sensors_sorted_near_standard[explore: explore+4]
+              sensors_selection_for_hull = sensors[index_sensors_sorted_for_hull]
+              judge_hull = convex_hull_volume.calculate(sensors_selection_for_hull)
+
+              if judge_hull >= 100:
+                use_sensors_count[index_sensors_sorted_for_hull] += 1
+                break
+
+              explore +=1
+
+          # 測距データが3つ以上得られた場合(機械学習によって弾かれてしまったパターン)
+          elif number_targets_unlocalized_get_length >= 3:
+            # index_sensor_get_measure = np.where(targets_get_measure_list[:, target_unlocalized] == 1)[0]
+            # use_sensors_count[index_sensor_get_measure] += 1
+            target_standard = targets_estimated_list[target_unlocalized]
+            # calclate_normで計算するように成形する
+            target_standard = np.append(target_standard, 0)
+            index_sensors_sorted_near_standard = np.argsort(calculate_norm.calculate(sensors,target_standard))
+
+            while explore + 3 <= len(index_sensors_sorted_near_standard):
+              index_sensors_sorted_for_hull = index_sensors_sorted_near_standard[explore: explore+4]
+              sensors_selection_for_hull = sensors[index_sensors_sorted_for_hull]
+              judge_hull = convex_hull_volume.calculate(sensors_selection_for_hull)
+
+              if judge_hull >= 100:
+                use_sensors_count[index_sensors_sorted_for_hull] += 1
+                break
+
+              explore +=1
+
+          # elif number_targets_unlocalized_get_length >= 4:
+          #   index_sensor_get_measure = np.where(targets_get_measure_list[:, target_unlocalized] == 1)[0] 
+
+
+        # 使用すると決定されたセンサーのインデックスを特定し使用するセンサのみ測距フラグを０にする
+        index_useful_sensors = np.where(use_sensors_count > 0)[0]
+        index_dont_use_sensors = np.where(use_sensors_count == 0)[0]
+        sensors[index_useful_sensors, 2] = 0
+        sensors[index_dont_use_sensors, 2] = 1
+
+        sensors_count_now = len(sensors)
+        sensors_count_previous = distances_measured_list_avg.shape[0]
+        sensors_count_change = sensors_count_now - sensors_count_previous
+        targets_count_for_shape = distances_measured_list_avg.shape[1]
+
+        # センサーの数（使用する/しない関わらず）が増加すれば増加分０行列を追加して保存/前回と同じならそのまま保存
+        if sensors_count_change > 0:
+        # 増加したセンサー分の行×ターゲット数の列の０行列の作成
+          zeros_for_completion = np.zeros((sensors_count_change, targets_count_for_shape))
+        #　前文で作成していた行列をひとつ前の結果に垂直方向に接続　これを保存しておく
+          save_distances_measured_list_avg = np.vstack((distances_measured_list_avg, zeros_for_completion))
+          save_distances_measured_list_count = np.vstack((distances_measured_list_count, zeros_for_completion))
+
+        if sensors_count_change == 0:
+          save_distances_measured_list_avg = distances_measured_list_avg
+          save_distances_measured_list_count = distances_measured_list_count
+
+
+
+      # PRS送信回数が最大値に達した場合測距フラグを更新
+      # if np.any(sensors_prs_count >= max_signal_transmission):
+      #   mask_sensors_over_measure = np.where(sensors_prs_count >= max_signal_transmission)
+      #   sensors[mask_sensors_over_measure,2] = 1
+      # 測位フラグが1か0でインデックスを分ける
       mask_sensors_measured = np.where(sensors[:, 2] == 1)[0]
       mask_sensors_unmeasured = np.where(sensors[:, 2] == 0)[0]
+      transition_sensors_measurable = np.append(transition_sensors_measurable,len(mask_sensors_unmeasured))
 
 
       
@@ -280,6 +420,26 @@ if __name__ == "__main__":
         for sensor_original in sensors_original[mask_sensors_unmeasured]
       ])
 
+      # 二回目以降で行う
+      if is_looped:
+        # 測距に参加していないセンサの記録として前回の記録を追加
+        if len(mask_sensors_unmeasured) == 0:
+          distances_measured_list = save_distances_measured_list_avg
+        
+        else:
+          for mask_sensor_measured in mask_sensors_measured:
+            distances_measured_list = np.insert(distances_measured_list,mask_sensor_measured,save_distances_measured_list_avg[mask_sensor_measured],axis = 0)
+
+          
+        
+        # 測位できたターゲットの列の記録をnanに変化
+        indexs_targets_localized = np.where(targets[:, 2] == 1)[0]
+        for index_targets_localized in indexs_targets_localized:
+          distances_measured_list[:, index_targets_localized] = np.nan
+        # このデータを平均化した後に反映させるために一度保存
+        save_distances_measured_list_avg = distances_measured_list
+        
+
       # 測距に参加したセンサのPRS送信回数を+1
       sensors_prs_count[mask_sensors_unmeasured] += 1
 
@@ -292,7 +452,11 @@ if __name__ == "__main__":
         distances_measured_list_count = np.where(np.isinf(distances_measured_list), 0, 1)
         is_initial_distances_measurement = False # ここをコメントアウトすると，測距値は都度リセットされる
       else:
-        distances_measured_list_avg, distances_measured_list_count = distances_avg.calculate(distances_measured_list_avg, distances_measured_list, distances_measured_list_count,mask_sensors_measured)
+        distances_measured_list_avg, distances_measured_list_count = distances_avg.calculate(distances_measured_list_avg, distances_measured_list, distances_measured_list_count)
+        # 使用しないセンサはひとつ前の記録に戻す
+        for mask_sensor_measured in mask_sensors_measured:
+          distances_measured_list_avg[mask_sensor_measured] = save_distances_measured_list_avg[mask_sensor_measured]
+          distances_measured_list_count[mask_sensor_measured] = save_distances_measured_list_count[mask_sensor_measured]
         
       # 測距フラグの更新
       # if not is_successive:
@@ -311,6 +475,7 @@ if __name__ == "__main__":
         if targets_unlocalized_count[index_targets_unlocalized] < max_localization_loop:
 
           mask_distance_measurable_for_targets_unlocalized = ~np.isinf(distances_measured_avg_for_targets_unlocalized)
+          index_distance_measurable_for_targets_unlocalized = np.where(mask_distance_measurable_for_targets_unlocalized)
           distances_estimated_for_targets_unlocalized = distances_measured_avg_for_targets_unlocalized[mask_distance_measurable_for_targets_unlocalized]
           sensors_available_for_targets_unlocalized = sensors[mask_distance_measurable_for_targets_unlocalized]
           if len(distances_estimated_for_targets_unlocalized) >= 3:
@@ -322,7 +487,7 @@ if __name__ == "__main__":
               newton_raphson_threshold,
               field_range
             )
-
+            targets_estimated_list[index_targets_unlocalized] = target_estimated_initial
             if not np.any(np.isnan(target_estimated_initial)):
               targets_estimated_initial = np.append(targets_estimated_initial, [target_estimated_initial], axis=0)
               mask_targets_estimated_initial = np.append(mask_targets_estimated_initial, index_targets_unlocalized)
@@ -334,7 +499,10 @@ if __name__ == "__main__":
           else:
             # 一時測位できない場合は加算
             targets_unlocalized_count[index_targets_unlocalized] += 1
-            targets_unlocalized_reasons[0] += 1
+            # # 測距値が足りずに測位できなかったものはここにカウント
+            # targets_unlocalized_reasons[0] += 1
+
+
 
 
       
@@ -493,12 +661,16 @@ if __name__ == "__main__":
       # if not is_localizable:
       #   print(f"\ntargets:\n {targets}")
       #   print(f"unlocalized count:\n{targets_unlocalized_count}")
+      # if len(target_localized) == 12:
+      #   break
 
+      is_looped = True
+      
       if len(targets_localized) == targets_count:
         break
     
     # targets_unlocalized = targets[targets[:, 2] == 0]
-    # if len(targets_unlocalized) > 0 :
+    # if targets_unlocalized_reasons[0] > 0 :
     #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
     #   plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
     #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
@@ -560,7 +732,7 @@ if __name__ == "__main__":
       signal_transmission_count_avg = (signal_transmission_count_avg*sim_cycle + signal_transmission_count)/(sim_cycle + 1)
     
     # if signal_transmission_count >= 40:
-    #   print(f"{np.max(targets_unlocalized_count)},{transition_signal_transmission_count}")
+    #   print(f"{np.max(targets_unlocalized_count)} , {transition_signal_transmission_count} , {transition_sensors_measurable}")
     #   print("\n")
     #   print(f"can't distance:{targets_unlocalized_reasons[0]} / can't recursive:{targets_unlocalized_reasons[1]}")
     signal_transmission_count_list = np.append(signal_transmission_count_list,signal_transmission_count)
