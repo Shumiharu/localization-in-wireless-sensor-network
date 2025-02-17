@@ -39,7 +39,7 @@ localization:
   is_predictive: true # モデルによる誤差予測
   is_recursive: true # 再帰的に誤差予測を行う
   max_loop: 7
-  max_distance_measurement: 2
+  max_distance_measurement: 1
   newton_raphson:
     max_loop: 10
     threshold: 10**(-8)

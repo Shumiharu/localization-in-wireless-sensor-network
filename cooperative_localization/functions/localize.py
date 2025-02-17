@@ -379,11 +379,14 @@ if __name__ == "__main__":
                 # 再帰的処理のカウント
                 recursion_depth += 1
 
+
+
               # 再帰的処理を行った場合の処理回数の平均である点に注意
               if recursion_depth > 0:
                 recursion_depth_list = np.append(recursion_depth_list, recursion_depth)
 
           if not is_predictive or not is_positive:
+            print("測位されました")
 
             # 推定座標の確定
             target_localized = np.append(target_estimated, 0)
@@ -403,18 +406,25 @@ if __name__ == "__main__":
             targets[index_targets_estimated, 2] = 1
           
           else:
+            print("測位されませんでした")
             targets_unlocalized_count[index_targets_estimated] += 1
 
-          if signal_transmission_count > 50:
-            plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
-            plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
-            plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
-            plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
-            plt.scatter(target_estimated[0], target_estimated[1], c="blue")
-            plt.scatter(target[0], target[1], c="red")
-            plt.show()
-            plt.close('all')
-            plt.clf()
+            # if signal_transmission_count > 50:
+            #   # print("測位されました" if not is_predictive or not is_positive else "測位はされませんでした")
+            #   print(f"測位参照信号送信回数: {signal_transmission_count}")
+            #   print(f"再帰処理回数: {recursion_depth}")
+            #   plt.scatter(sensors[:, 0], sensors[:, 1], c="gray")
+            #   # plt.scatter(sensors_available_for_target_estimated_orignal[:, 0], sensors_available_for_target_estimated_orignal[:, 1], c="black")
+              
+            #   plt.scatter(sensors_available_for_target_estimated[:, 0], sensors_available_for_target_estimated[:, 1], c="green")
+            #   plt.scatter(anchors[:, 0], anchors[:, 1], c="orange")
+            #   plt.scatter(target_estimated[0], target_estimated[1], c="blue")
+            #   plt.scatter(target[0], target[1], c="red")
+            #   plt.show()
+            #   plt.close('all')
+            #   plt.clf()
+
+
         
         if is_successive:
           index_targets_begin = np.max(mask_targets_estimated) + 1
